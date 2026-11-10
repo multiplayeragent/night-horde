@@ -1,0 +1,21 @@
+{
+  "name": "Night Horde",
+  "genre": "shooter",
+  "dim": "2D",
+  "mode": "Co-op",
+  "players": "1–4",
+  "hook": "Just move. Your weapons do the rest. Survive the night.",
+  "how": "Walk the graveyard while your weapons fire on their own. Grab the gems monsters drop to level up and pick an upgrade, stand by a downed friend to get them up, and beat the Night Lord at 10:00.",
+  "controls": "WASD, arrows or hold the mouse to walk, 1/2/3 to pick an upgrade; on touch, drag anywhere to walk and tap a card",
+  "uses": [
+    ["Leaderboard", "Each player's most kills in one night, shown on the results card."],
+    ["Bots", "Bots fill the team up to four hunters, each with its own build."],
+    ["Host-run rules", "The host's browser runs the horde, the clock and the bots; if it leaves, the next player takes over."],
+    ["Live sync", "Hundreds of monsters chase the team on every screen at once."]
+  ],
+  "ideas": [
+    "Add a fire bomb weapon that leaves burning ground",
+    "Make it a frozen tundra with snow wolves instead of bats",
+    "Let players pick a hunter with a different starting weapon"
+  ]
+}

@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Night Horde</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #05060c; }
+  body { font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #eef2ff; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
+  .hud { position: fixed; pointer-events: none; text-shadow: 0 1px 3px #000c; }
+  #xp { top: env(safe-area-inset-top); left: 0; right: 0; height: 8px; background: #0b0e1fcc; border-bottom: 1px solid #ffffff1a; }
+  #xp i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4cc9f0, #7ee0ff); box-shadow: 0 0 10px #4cc9f0; transition: width .15s; }
+  #lvl { top: calc(env(safe-area-inset-top) + 16px); left: max(14px, env(safe-area-inset-left)); font: 900 24px/1.05 system-ui, sans-serif; }
+  #lvl small { display: block; margin-top: 2px; font-size: 13px; font-weight: 700; opacity: .8; }
+  #build { top: calc(env(safe-area-inset-top) + 70px); left: max(14px, env(safe-area-inset-left)); width: 190px; font-size: 12px; font-weight: 700; }
+  #build span { display: inline-block; margin: 0 4px 4px 0; padding: 1px 6px; border-radius: 8px; background: #0b0e1fb0; border: 1px solid #ffffff22; }
+  #clock { top: calc(env(safe-area-inset-top) + 16px); left: 50%; transform: translateX(-50%); text-align: center; font: 900 26px/1.05 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  #clock small { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; opacity: .75; }
+  #team { top: calc(env(safe-area-inset-top) + 18px); right: max(14px, env(safe-area-inset-right)); width: 150px; font-size: 12px; }
+  #team div { display: grid; grid-template-columns: 1fr 34px 40px; gap: 6px; align-items: center; margin-bottom: 3px; }
+  #team b { height: 5px; border-radius: 3px; background: #0009; overflow: hidden; } #team b i { display: block; height: 100%; background: #7ee081; }
+  #team .down { color: #ff6b6b; font-weight: 800; }
+  #boss { top: calc(env(safe-area-inset-top) + 66px); left: 50%; transform: translateX(-50%); width: min(520px, calc(100vw - 440px)); text-align: center; font: 800 12px system-ui, sans-serif; letter-spacing: .1em; }
+  #boss b { display: block; height: 12px; margin-top: 3px; border-radius: 6px; background: #000b; border: 1px solid #ffffff55; overflow: hidden; } #boss b i { display: block; height: 100%; background: linear-gradient(90deg, #ff2d55, #ff7a8f); }
+  #boss[hidden] { display: none; }
+  #msg { top: 30%; left: 0; right: 0; padding: 0 16px; text-align: center; font: 900 32px/1.1 system-ui, sans-serif; letter-spacing: .04em; }
+  #msg small { display: block; margin-top: 6px; font-size: 15px; font-weight: 700; letter-spacing: 0; opacity: .85; }
+  #hint { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 26px); left: 0; right: 0; padding: 0 16px; text-align: center; font-size: 14px; opacity: .9; }
+  #net { bottom: max(10px, env(safe-area-inset-bottom)); left: max(14px, env(safe-area-inset-left)); font-size: 12px; opacity: .7; }
+  #cards { position: fixed; left: 50%; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 30px); transform: translateX(-50%); box-sizing: border-box; width: min(560px, calc(100vw - 20px)); text-align: center; }
+  #cards[hidden], #over[hidden], .stick[hidden] { display: none; }
+  #cardsTitle { margin-bottom: 6px; font: 900 15px system-ui, sans-serif; letter-spacing: .08em; color: #ffd166; text-shadow: 0 1px 4px #000; }
+  #cardRow { display: flex; gap: 8px; }
+  .pick { position: relative; flex: 1; min-width: 0; min-height: 100px; padding: 10px 8px 8px; border-radius: 12px; border: 2px solid #ffd16699; background: #141936ee; color: #eef2ff; font: 13px/1.25 system-ui, sans-serif; text-align: left; cursor: pointer; box-shadow: 0 4px 18px #000a; }
+  .pick:hover { border-color: #ffd166; background: #1c2350ee; }
+  .pick .ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 4px; }
+  .pick b { display: block; font-size: 14px; } .pick i { display: block; font-style: normal; font-size: 11px; font-weight: 800; color: #ffd166; }
+  .pick small { display: block; margin-top: 3px; font-size: 12px; opacity: .8; }
+  .pick kbd { position: absolute; top: 6px; right: 8px; font: 800 11px system-ui, sans-serif; opacity: .5; }
+  #over { position: fixed; inset: 0; display: grid; place-items: center; background: #05060cb0; }
+  .card { box-sizing: border-box; width: min(380px, calc(100vw - 32px)); max-height: 88vh; overflow: auto; padding: 20px; border-radius: 16px; background: #121731; border: 1px solid #ffffff26; text-align: center; }
+  .card h2 { margin: 0 0 4px; font-size: 26px; } .card h3 { margin: 14px 0 4px; font-size: 13px; color: #7ee0ff; text-align: left; }
+  .stats { display: flex; justify-content: space-around; margin-top: 10px; } .stats div { font: 900 24px/1.1 system-ui, sans-serif; color: #ffd166; font-variant-numeric: tabular-nums; }
+  .stats small { display: block; font-size: 11px; font-weight: 700; color: #eef2ff; opacity: .7; letter-spacing: .06em; }
+  .card ol { margin: 0; padding-left: 24px; font-size: 14px; text-align: left; }
+  .card li span { float: right; font-variant-numeric: tabular-nums; } .card li.me { color: #ffd166; font-weight: 700; }
+  .card p { margin: 10px 0 0; font-size: 13px; opacity: .7; }
+  button.go { width: 100%; min-height: 48px; margin-top: 16px; border: 0; border-radius: 12px; background: #7ee0ff; color: #061520; font: 800 17px system-ui, sans-serif; cursor: pointer; }
+  .stick { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid #ffffff55; background: #ffffff12; pointer-events: none; }
+  .stick i { position: absolute; left: 34px; top: 34px; width: 52px; height: 52px; border-radius: 50%; background: #ffffff70; }
+  @media (max-width: 640px) {
+    #lvl { font-size: 20px; } #clock { font-size: 22px; } #team { width: 118px; font-size: 11px; } #team div { grid-template-columns: 1fr 26px 30px; }
+    #build { width: 130px; font-size: 11px; } #msg { font-size: 24px; }
+    #boss { top: calc(env(safe-area-inset-top) + 150px); width: calc(100vw - 40px); }
+    .pick { min-height: 112px; padding: 8px 6px 6px; } .pick small { font-size: 11px; } .pick kbd { display: none; }
+  }
+</style>
+<script src="https://cdn.multiplayeragent.com/sdk/mp.global.js"></script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud" id="xp"><i id="xpFill"></i></div>
+<div class="hud" id="lvl"></div>
+<div class="hud" id="build"></div>
+<div class="hud" id="clock"></div>
+<div class="hud" id="team"></div>
+<div class="hud" id="boss" hidden>THE NIGHT LORD<b><i id="bossFill"></i></b></div>
+<div class="hud" id="msg"></div>
+<div class="hud" id="hint"></div>
+<div class="hud" id="net">Connecting…</div>
+<div class="stick" id="stick" hidden><i></i></div>
+<div id="cards" hidden><div id="cardsTitle"></div><div id="cardRow"></div></div>
+<div id="over" hidden><div class="card">
+  <h2 id="overTitle"></h2><div id="overSub"></div>
+  <div class="stats"><div id="stTime"></div><div id="stKills"></div><div id="stLevel"></div></div>
+  <h3>Your team</h3><ol id="results"></ol>
+  <h3>Most kills in one night</h3><ol id="board"><li>Loading…</li></ol>
+  <button class="go" id="again">Play again</button><p id="next"></p>
+</div></div>
+<script>
+/* ═══ NIGHT HORDE · a Multiplayer Agent starter ═══════════════════════════════════════
+ * Survive the night in a haunted graveyard. You only walk: your weapons fire on their own.
+ * Grab the gems monsters drop, level up, pick upgrades. Co-op, 1–4 players; bots fill the team.
+ *
+ * WHERE THINGS ARE (search for the "── " headers):
+ *   CONFIG ........ night length, the horde, hunters, bots
+ *   CONTENT ....... monster kinds, waves, weapons, passives (tables: add a row to add one)
+ *   CONNECTION .... MP_CONNECT, joining, the offline room, who is host
+ *   FOES .......... how the horde is packed into state, the chase every screen runs, corrections
+ *   WEAPONS ....... firing, bolts and daggers, hits (yours count; other people's are only drawn)
+ *   NIGHT (HOST) .. the clock, spawns, elites, the boss, kills, the bots. Only the host writes these.
+ *   ME ............ walking, gems, levels and upgrades, getting hurt, downed and revived. Your own.
+ *   DRAW .......... graveyard, gems, monsters, hunters, weapon effects, the night
+ *   HUD & RESULTS . xp bar, clock, team, level-up cards, results, leaderboard
+ *   INPUT ......... keys, hold the mouse, and a thumb stick on touch
+ *
+ * HOW THE MULTIPLAYER WORKS (a relay room: no server code, the HOST's browser runs the horde):
+ *   - Each player writes its OWN entity: `p` (one packed JSON field: x, y, hp, max hp, level,
+ *     down, revive progress, facing, build) about 12 times a second, `hb` (heartbeat) once a
+ *     second, `n`/`c` (name, color) once. Your health, level and build are yours alone.
+ *   - The HOST is the lowest sessionId among live players (heartbeat seen in the last 3s),
+ *     worked out every frame. Only the host writes the shared fields:
+ *       `run`   {id, v, phase: play|over, startAt, elites, swarms, boss, won, endedAt, endsAt, final}
+ *       `f0` `f1` `f2`  the horde: every monster in 10 characters (see FOES); a monster always
+ *               lives in field id % 3. One field is rewritten every 100ms, so each every 300ms.
+ *       `team`  {k: kills per hunter, n: names}, twice a second when it changes
+ *       `bots`  the bot hunters (position, health, level, build), 8 times a second
+ *   - EVERY screen runs the same chase: each monster walks to the nearest standing hunter and
+ *     shoves its neighbours aside. The snapshots only nudge each monster toward where the host
+ *     has it, add new ones and remove dead ones. So hundreds of monsters move smoothly while
+ *     the host sends about 10 horde messages a second.
+ *   - Your weapons hit on YOUR screen. The damage goes to the host batched 8 times a second:
+ *     "hits" {l: [[monster id, damage], ...]}. The host takes the health off and counts the kill
+ *     for you. You see your kills at once; everyone else sees them in the next snapshot.
+ *     Other hunters' weapons are drawn on your screen but do no damage there.
+ *   - XP gems: every screen drops its OWN copy of a gem where a monster dies, so each hunter
+ *     picks up its own XP and levels on its own (nobody steals your gems). An elite drops a
+ *     chest the same way: one free upgrade each. Bots get their XP straight from the kills.
+ *   - Getting hurt is YOUR fact: only your screen checks the monsters touching you (the host
+ *     does it for the bots). At 0 health you are down; a teammate standing next to you gets you
+ *     back up. You check that yourself from everyone's positions. Everyone down = night over.
+ *   - A tab that comes back from a freeze or the background drops the host role for ~700ms and then
+ *     adopts what is in state, so a stale host never rewinds the night. And nobody starts hosting
+ *     while another tab is still writing the horde (it waits until that has been quiet for 400ms).
+ *   - "again" (intent): someone pressed Play again on the results card.
+ *   - ?attract plays offline with bots only (the preview video is recorded from it).
+ *   - Leaderboard "night-kills": each player's most kills in one night.
+ */
+
+// ── CONFIG ──────────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  runMs: 600000,         // the Night Lord comes at 10:00; beat him and dawn breaks
+  readyMs: 3000,         // ms of "night falls" before the first monsters
+  resultsMs: 15000,      // ms the results show before the next night starts
+  startMinute: 0,        // where a new night starts on the clock (the preview starts late)
+  seats: 4,              // bots fill the team up to this many hunters
+  arena: 3000,           // the graveyard is this many px across (square)
+  hp: 100,               // hunter health
+  speed: 200,            // hunter speed, px/s
+  magnet: 80,            // px: your gems fly to you from this far
+  shieldMs: 2500,        // ms nothing can hurt you after you come in or get back up
+  reviveRange: 70,       // stand this close to a downed teammate ...
+  reviveMs: 3000,        // ... for this long to get them up (at half health)
+  maxWeapons: 4,         // weapon slots
+  maxPassives: 4,        // passive slots
+  xpBase: 4,             // xp for the next level: xpBase + xpGrow × level + xpCurve × level²
+  xpGrow: 5,
+  xpCurve: 0.4,
+  levelHeal: 0.1,        // part of your max health a level-up gives back
+  novaDamage: 25,        // a level-up blasts the monsters around you for this much
+  startLevel: 1,         // the level everyone starts a night at
+  startWeapon: "M",      // what people start with (each bot starts with something else)
+  hordeStart: 30,        // monsters on the field at minute 0 ...
+  hordeGrow: 40,         // ... and this many more every minute
+  maxFoes: 450,          // most monsters at once from topping up (the wire holds 600)
+  spawnPerSec: 8,        // how fast the host tops the horde up at minute 0 ...
+  spawnGrow: 5,          // ... and this much faster every minute
+  spawnMax: 60,          // ... but never faster than this many a second
+  hpGrow: 0.4,           // monsters come in tougher as the night goes on: health × (1 + hpGrow × minute + hpCurve × minute²)
+  hpCurve: 0.05,
+  hurtGrow: 0.15,        // ... and bite 15% harder
+  maxBiters: 4,          // only this many monsters touching you hurt at once (the strongest ones)
+  spawnDist: 780,        // px from a hunter where monsters come in (just off screen)
+  farDist: 1500,         // px: a monster this far from every hunter comes back in near one
+  swarmEvery: 90,        // seconds between bat swarms (a ring that closes in); the first at 0:45
+  swarmSize: 24,         // bats in a swarm ...
+  swarmGrow: 8,          // ... plus this many more every minute
+  bossHp: 30000,         // the Night Lord's health
+  bossSummonEvery: 6,    // seconds between the bat rings the Night Lord calls
+  maxGems: 400,          // most gems on your screen (extra ones merge into bigger gems)
+  botSkill: 0.6,         // 0..1: how hard bots keep away from the horde
+  botXp: 0.55,           // bots get this part of every kill's xp (they don't pick up gems)
+  board: "night-kills",  // leaderboard name
+};
+const BOT_NAMES = ["Rook", "Sable", "Wren", "Ash", "Vesper", "Moss"];
+const BOT_WEAPONS = ["S", "O", "D", "A"]; // each bot starts with the next one of these
+const COLORS = ["#ffd166", "#4cc9f0", "#ff6b9a", "#7ee081", "#c79bff", "#ff9f43", "#f15bb5", "#9ef01a"];
+
+// ── CONTENT ─────────────────────────────────────────────────────────────────────────
+// Monster kinds. hp grows with the clock (CONFIG.hpGrow, hpCurve), dps = health per second a touch takes.
+const KINDS = {
+  b: { name: "bat",        hp: 5,   speed: 125, r: 11, dps: 6,  xp: 1 },
+  g: { name: "ghoul",      hp: 12,  speed: 66,  r: 16, dps: 10, xp: 2 },
+  s: { name: "skeleton",   hp: 20,  speed: 84,  r: 15, dps: 12, xp: 3 },
+  w: { name: "wraith",     hp: 16,  speed: 102, r: 15, dps: 14, xp: 3 },
+  t: { name: "brute",      hp: 85,  speed: 48,  r: 27, dps: 22, xp: 10 },
+  E: { name: "elite",      hp: 420, speed: 74,  r: 34, dps: 30, xp: 40 },  // one a minute, drops a chest
+  B: { name: "Night Lord", hp: 0,   speed: 62,  r: 66, dps: 55, xp: 0 },   // health: CONFIG.bossHp
+};
+// Which monsters come in, by minute: [from this minute on, {kind: weight}]
+const WAVES = [
+  [0, { b: 6, g: 4 }],
+  [1, { b: 5, g: 5, s: 2 }],
+  [2.5, { b: 4, g: 4, s: 4, w: 2 }],
+  [4, { b: 4, g: 3, s: 4, w: 3, t: 1 }],
+  [6, { b: 4, g: 2, s: 4, w: 4, t: 2 }],
+  [8, { b: 5, g: 2, s: 3, w: 4, t: 3 }],
+];
+// Weapons: every array is levels 1..5. Codes are capital letters; a build is written like "M3O2s1".
+const WEAPONS = {
+  M: { name: "Moon Bolt", icon: "✦", color: "#9fd8ff", info: "Shoots the nearest monsters", cd: [1.1, 1.0, 0.9, 0.8, 0.7], n: [1, 2, 2, 3, 4], dmg: [12, 13, 17, 18, 24], pierce: [1, 1, 2, 2, 3] },
+  D: { name: "Silver Daggers", icon: "†", color: "#e6ecff", info: "Thrown the way you walk", cd: [0.55, 0.5, 0.45, 0.4, 0.35], n: [1, 2, 3, 3, 4], dmg: [9, 9, 10, 13, 15], pierce: [1, 1, 1, 2, 2] },
+  S: { name: "Night Scythe", icon: "☾", color: "#c79bff", info: "Sweeps the monsters beside you", cd: [1.4, 1.3, 1.2, 1.1, 1.0], dmg: [18, 20, 24, 28, 34], reach: [130, 140, 155, 165, 185], both: [0, 1, 1, 1, 1] },
+  O: { name: "Star Orbit", icon: "✶", color: "#ffd166", info: "Stars circle you and burn", n: [2, 2, 3, 4, 5], dmg: [9, 11, 12, 14, 17], radius: [85, 95, 100, 110, 120], spin: [2.6, 2.8, 3, 3.2, 3.6] },
+  A: { name: "Moon Aura", icon: "◎", color: "#7ee0ff", info: "Hurts every monster close by", cd: [0.5, 0.5, 0.5, 0.45, 0.4], dmg: [5, 6, 8, 10, 13], radius: [70, 80, 90, 100, 115] },
+  Z: { name: "Storm Call", icon: "ϟ", color: "#fff27a", info: "Lightning hits monsters nearby", cd: [2.4, 2.2, 2.0, 1.8, 1.5], n: [2, 3, 4, 5, 7], dmg: [28, 32, 38, 44, 55] },
+};
+// Passives: each level adds `per` once. Codes are small letters.
+const PASSIVES = {
+  s: { name: "Swift Boots", icon: "»", info: "+8% walk speed", per: 0.08 },
+  m: { name: "Lodestone", icon: "◉", info: "+35% gem pull range", per: 0.35 },
+  a: { name: "Iron Skin", icon: "▣", info: "-7% damage taken", per: 0.07 },
+  h: { name: "Big Heart", icon: "♥", info: "+20 max health", per: 20 },
+  f: { name: "Fury", icon: "▲", info: "+10% weapon damage", per: 0.1 },
+  q: { name: "Quick Hands", icon: "↻", info: "-7% weapon cooldowns", per: 0.07 },
+  r: { name: "Wide Reach", icon: "◌", info: "+10% weapon size", per: 0.1 },
+};
+const MAX_LV = 5;
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const parseBuild = (s) => { const b = {}; if (typeof s === "string") for (const [, c, n] of s.matchAll(/([A-Za-z])(\d)/g)) if (WEAPONS[c] || PASSIVES[c]) b[c] = +n; return b; };
+const buildStr = (b) => Object.entries(b).map(([c, n]) => c + n).join("");
+/** What a build adds up to: multipliers for speed, gem pull, damage, cooldowns, size, and armor and max health. */
+function statsOf(b) {
+  const p = (c) => (b[c] || 0) * PASSIVES[c].per;
+  return { speed: 1 + p("s"), magnet: 1 + p("m"), armor: Math.min(0.6, p("a")), maxHp: CONFIG.hp + p("h"), might: 1 + p("f"), haste: Math.max(0.5, 1 - p("q")), area: 1 + p("r") };
+}
+const xpNeed = (lv) => CONFIG.xpBase + CONFIG.xpGrow * lv + CONFIG.xpCurve * lv * lv;
+
+// ── CONNECTION ──────────────────────────────────────────────────────────────────────
+// The builder fills these in for this game. Downloaded from GitHub? Put your own pk_ key here.
+const MP_CONNECT = {
+  key: 'pk_REPLACE_ME',
+  room: 'night-horde',
+  endpoint: 'wss://live.multiplayeragent.com',
+  apiUrl: 'https://api.multiplayeragent.com',
+};
+const ATTRACT = new URLSearchParams(location.search).has("attract");
+
+/** Same shape as the SDK client, kept in this tab: offline play and ?attract. */
+function localRoom() {
+  const id = "local", state = { entities: { players: { [id]: {} } }, shared: {} }, subs = [];
+  let queued = false;
+  const emit = () => { if (!queued) { queued = true; queueMicrotask(() => { queued = false; subs.forEach((f) => f(state)); }); } };
+  const put = (o, k, v) => { if (typeof k === "object") Object.assign(o, k); else o[k] = v; emit(); };
+  return {
+    sessionId: id, state, offline: true,
+    me: { set: (k, v) => put(state.entities.players[id], k, v) },
+    setShared: (k, v) => put(state.shared, k, v),
+    onState: (f) => { subs.push(f); f(state); }, onJoin() {}, onLeave() {}, on() {}, send() {},
+    onDisconnect() {}, onReconnect() {}, leave: async () => {},
+  };
+}
+async function connect() {
+  if (ATTRACT || typeof MP === "undefined") return localRoom();
+  try {
+    const mp = await Promise.race([MP.join({ ...MP_CONNECT }), new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 10000))]);
+    window.mp = mp; // the builder calls window.mp.leave() when the page closes
+    return mp;
+  } catch (e) {
+    console.warn("Playing offline:", e && e.message);
+    return localRoom();
+  }
+}
+const parse = (v, fb) => { if (typeof v !== "string") return fb; try { return JSON.parse(v); } catch { return fb; } };
+const parsed = new Map();
+/** A JSON value from state, parsed once per change (read-only: never mutate what this returns). */
+function parseOnce(key, raw, fallback) {
+  const c = parsed.get(key);
+  if (c && c.raw === raw) return c.v;
+  const v = parse(raw, fallback); parsed.set(key, { raw, v }); return v;
+}
+let net = null, S = { entities: { players: {} }, shared: {} };
+const seenHb = new Map();
+/** Players whose heartbeat moved in the last 3s (plus us), sorted by sessionId. */
+function livePlayers() {
+  const now = performance.now(), out = [];
+  for (const [id, p] of Object.entries(S.entities.players || {})) {
+    const s = seenHb.get(id);
+    if (!s || s.hb !== p.hb) seenHb.set(id, { hb: p.hb, at: now });
+    if (id === net.sessionId || now - seenHb.get(id).at < 3000) out.push(id);
+  }
+  return out.sort();
+}
+const isHost = () => livePlayers()[0] === net.sessionId;
+
+// ── FOES ────────────────────────────────────────────────────────────────────────────
+// On the wire every monster is 10 characters: id(2) kind(1) x(2) y(2) hp(3). Numbers are base 36,
+// positions to 2.5 px (+120 so they're never negative). A monster's id % 3 picks its field, so it
+// never moves between fields. Each field starts with "f" and the night's id: it never looks like a
+// number, and a field left over from the last night is ignored.
+const FOE_FIELDS = ["f0", "f1", "f2"], PER_FIELD = 200; // 200 × 10 characters fits in 2048
+const b36 = (n, w) => clamp(Math.round(n), 0, 36 ** w - 1).toString(36).padStart(w, "0");
+const packPos = (v) => b36((v + 120) / 2.5, 2), unpackPos = (s) => parseInt(s, 36) * 2.5 - 120;
+function packFoes(list, runId) {
+  return "f" + b36(runId % 1296, 2) + list.map((f) => b36(f.id, 2) + f.k + packPos(f.x) + packPos(f.y) + b36(Math.ceil(f.hp), 3)).join("");
+}
+function unpackFoes(str) {
+  const out = { run: -1, list: [] };
+  if (typeof str !== "string" || str[0] !== "f") return out;
+  out.run = parseInt(str.slice(1, 3), 36);
+  for (let i = 3; i + 10 <= str.length; i += 10) {
+    const k = str[i + 2];
+    if (KINDS[k]) out.list.push({ id: parseInt(str.slice(i, i + 2), 36), k, x: unpackPos(str.slice(i + 3, i + 5)), y: unpackPos(str.slice(i + 5, i + 7)), hp: parseInt(str.slice(i + 7, i + 10), 36) });
+  }
+  return out;
+}
+// What this screen has: id -> { id, k, x, y, hp, max, ox, oy (a correction still to apply), face, flash, dead, deadAt, hitAt }
+const foes = new Map();
+const newFoe = (e) => ({ id: e.id, k: e.k, x: e.x, y: e.y, hp: e.hp, max: e.k === "B" ? CONFIG.bossHp : e.hp, ox: 0, oy: 0, face: 1, flash: 0, dead: false, deadAt: 0, hitAt: null });
+// A grid of 64px cells so "monsters near here" never looks at all of them.
+const CELL = 64, grid = new Map();
+const cellKey = (cx, cy) => (cx + 8) + (cy + 8) * 4096;
+function buildGrid() {
+  grid.clear();
+  for (const f of foes.values()) {
+    if (f.dead) continue;
+    const key = cellKey(Math.floor(f.x / CELL), Math.floor(f.y / CELL));
+    const c = grid.get(key); if (c) c.push(f); else grid.set(key, [f]);
+  }
+}
+/** Calls fn for every live monster in the cells around (x, y) within about r (check the distance yourself). */
+function foesNear(x, y, r, fn) {
+  const x0 = Math.floor((x - r) / CELL), x1 = Math.floor((x + r) / CELL), y0 = Math.floor((y - r) / CELL), y1 = Math.floor((y + r) / CELL);
+  for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) { const c = grid.get(cellKey(cx, cy)); if (c) for (const f of c) if (!f.dead) fn(f); }
+}
+/** The chase, on every screen: each monster walks to the nearest standing hunter, then they shove each other apart. */
+function stepFoes(dt, r) {
+  const standing = hunters.filter((h) => !h.down), playing = r && r.phase === "play", speedUp = 1 + 0.02 * runMinute(r), A = CONFIG.arena;
+  for (const f of foes.values()) {
+    if (f.dead) continue;
+    f.flash -= dt;
+    if (f.ox || f.oy) { // the host's snapshot said it is a little elsewhere: get there over a few frames
+      const k = Math.min(1, dt * 6); f.x += f.ox * k; f.y += f.oy * k; f.ox *= 1 - k; f.oy *= 1 - k;
+      if (Math.abs(f.ox) + Math.abs(f.oy) < 0.3) f.ox = f.oy = 0;
+    }
+    if (!playing) continue;
+    let tg = null, bd = Infinity;
+    for (const h of standing) { const d = (h.x - f.x) ** 2 + (h.y - f.y) ** 2; if (d < bd) { bd = d; tg = h; } }
+    if (!tg) continue;
+    const K = KINDS[f.k], d = Math.sqrt(bd), stop = K.r + 12;
+    f.face = tg.x < f.x ? -1 : 1;
+    if (d > stop) { const step = Math.min(d - stop, K.speed * speedUp * dt); f.x += (tg.x - f.x) / d * step; f.y += (tg.y - f.y) / d * step; }
+  }
+  buildGrid();
+  for (const f of foes.values()) { // keep apart: the bigger one of a pair moves less
+    if (f.dead) continue;
+    const rf = KINDS[f.k].r;
+    foesNear(f.x, f.y, rf + 34, (o) => {
+      if (o === f || o.k === "B" || (f.k !== "B" && o.id < f.id)) return; // each pair once (the boss does its own)
+      const ro = KINDS[o.k].r, dx = o.x - f.x, dy = o.y - f.y, min = (rf + ro) * 0.85, d2 = dx * dx + dy * dy;
+      if (d2 >= min * min || d2 < 0.01) return;
+      const d = Math.sqrt(d2), push = (min - d) * 0.5 / d;
+      f.x -= dx * push * ro / (rf + ro) * 2; f.y -= dy * push * ro / (rf + ro) * 2;
+      o.x += dx * push * rf / (rf + ro) * 2; o.y += dy * push * rf / (rf + ro) * 2;
+    });
+    f.x = clamp(f.x, 10, A - 10); f.y = clamp(f.y, 10, A - 10);
+  }
+}
+/** Every monster gone at once (a night ends or starts), with no gems or blasts. */
+function clearFoes() { for (const f of foes.values()) f.dead = true; foes.clear(); }
+let lastFields = ["", "", ""], foesRun = -1;
+/** Not the host: read the snapshot fields that changed. Nudge known monsters, add new ones, drop the dead. */
+function readSnapshots(now, r) {
+  if (host.acting || !r) return;
+  if (foesRun !== r.id) { clearFoes(); foesRun = r.id; lastFields = ["", "", ""]; } // a new night
+  if (r.phase !== "play") { if (foes.size) clearFoes(); return; }                    // dawn, or everyone down: the horde is gone
+  FOE_FIELDS.forEach((name, i) => {
+    const raw = S.shared[name];
+    if (raw === lastFields[i]) return;
+    lastFields[i] = raw;
+    const { run: rid, list } = unpackFoes(raw);
+    if (rid !== r.id % 1296) return; // last night's field
+    const seen = new Set();
+    for (const e of list) {
+      seen.add(e.id);
+      const f = foes.get(e.id);
+      if (!f || f.k !== e.k) { foes.set(e.id, newFoe(e)); continue; }
+      if (f.dead) { if (now - f.deadAt > 1500) Object.assign(f, { dead: false, hp: e.hp, x: e.x, y: e.y, ox: 0, oy: 0 }); continue; } // the host never counted that kill: back it comes
+      const dx = e.x - f.x, dy = e.y - f.y;
+      if (dx * dx + dy * dy > 160 * 160) { f.x = e.x; f.y = e.y; f.ox = f.oy = 0; } else { f.ox = dx; f.oy = dy; }
+      f.hp = Math.min(f.hp, e.hp); f.max = Math.max(f.max, e.hp);
+    }
+    for (const [id, f] of foes) if (id % 3 === i && !seen.has(id)) { if (!f.dead && r.phase === "play") { deathFx(f); dropLoot(f); } foes.delete(id); }
+  });
+}
+/** Damage from a weapon on this screen. The host applies it; anyone else predicts it and tells the host. */
+function hurtFoe(f, dmg, by) {
+  if (f.dead) return;
+  dmg = Math.max(1, Math.round(dmg));
+  f.hp -= dmg; f.flash = 0.07;
+  if (host.acting) { if (f.hp <= 0) killFoe(f, by); return; }
+  pendingHits.set(f.id, (pendingHits.get(f.id) || 0) + dmg);
+  if (f.hp <= 0) { f.dead = true; f.deadAt = performance.now(); deathFx(f); dropLoot(f); } // show my kill now; the host confirms it
+}
+const pendingHits = new Map();
+function flushHits() {
+  if (!pendingHits.size || host.acting) return;
+  const l = [...pendingHits].slice(0, 180);
+  net.send("hits", { l });
+  for (const [id] of l) pendingHits.delete(id);
+}
+
+// ── WEAPONS ─────────────────────────────────────────────────────────────────────────
+const shots = [], arcs = [], zaps = [], sparks = [], rings = [], pops = [];
+/** Hunter h's weapons for one frame. real = this screen's damage counts (mine; and the bots' on the host). */
+function stepWeapons(h, dt, real, nowS) {
+  if (h.down) return;
+  for (const c in h.build) {
+    const W = WEAPONS[c]; if (!W) continue;
+    const i = Math.min(MAX_LV, h.build[c]) - 1;
+    if (c === "O") { if (real) orbitHits(h, W, i, nowS); continue; } // stars hit all the time
+    h.cds[c] = (h.cds[c] ?? Math.random() * 0.6) - dt;
+    if (h.cds[c] > 0) continue;
+    h.cds[c] = (W.cd[i] || 1) * h.st.haste;
+    FIRE[c](h, W, i, real);
+  }
+}
+/** The n live monsters nearest to h within range, nearest first. */
+function nearestFoes(h, n, range) {
+  const out = [];
+  for (const f of foes.values()) { if (f.dead) continue; const d = (f.x - h.x) ** 2 + (f.y - h.y) ** 2; if (d < range * range) out.push([d, f]); }
+  return out.sort((a, b) => a[0] - b[0]).slice(0, n).map((e) => e[1]);
+}
+const FIRE = {
+  M(h, W, i, real) { // Moon Bolt: one bolt at each of the nearest monsters
+    const n = W.n[i], targets = nearestFoes(h, n, 650);
+    if (!targets.length) { h.cds.M = 0.25; return; } // nothing to shoot: look again soon
+    for (let k = 0; k < n; k++) { const t = targets[k % targets.length], a = Math.atan2(t.y - h.y, t.x - h.x) + (k >= targets.length ? (Math.random() - 0.5) * 0.5 : 0); addShot(h, "M", a, 560, 1.1, W.dmg[i] * h.st.might, W.pierce[i], 7 * h.st.area, real); }
+    sfx("bolt", h);
+  },
+  D(h, W, i, real) { // Silver Daggers: thrown the way you walk, side by side
+    const a = Math.atan2(h.dirY, h.dirX), n = W.n[i];
+    for (let k = 0; k < n; k++) { const off = (k - (n - 1) / 2) * 12; addShot(h, "D", a, 800, 0.6, W.dmg[i] * h.st.might, W.pierce[i], 5 * h.st.area, real, -Math.sin(a) * off, Math.cos(a) * off); }
+  },
+  S(h, W, i, real) { // Night Scythe: a sweep to the side you face (both sides from level 2)
+    const reach = W.reach[i] * h.st.area, sides = W.both[i] ? [h.fx, -h.fx] : [h.fx];
+    for (const side of sides) {
+      arcs.push({ h, side, reach, t: 0 });
+      if (real) foesNear(h.x, h.y, reach + 70, (f) => {
+        const dx = (f.x - h.x) * side, dy = f.y - h.y, d = Math.hypot(dx, dy);
+        if (d < reach + KINDS[f.k].r && Math.abs(Math.atan2(dy, dx)) < 1.15) hurtFoe(f, W.dmg[i] * h.st.might, h.id);
+      });
+    }
+    sfx("swish", h);
+  },
+  A(h, W, i, real) { // Moon Aura: everything close by takes a little, every tick
+    if (!real) return;
+    const R = W.radius[i] * h.st.area;
+    foesNear(h.x, h.y, R + 40, (f) => { if ((f.x - h.x) ** 2 + (f.y - h.y) ** 2 < (R + KINDS[f.k].r * 0.5) ** 2) hurtFoe(f, W.dmg[i] * h.st.might, h.id); });
+  },
+  Z(h, W, i, real) { // Storm Call: lightning on random monsters nearby, with a small splash
+    const near = nearestFoes(h, 40, 480);
+    for (let k = 0; k < W.n[i] && near.length; k++) {
+      const f = near.splice(Math.floor(Math.random() * near.length), 1)[0];
+      zaps.push({ x: f.x, y: f.y, t: 0, seed: Math.random() * 99 });
+      if (!real) continue;
+      hurtFoe(f, W.dmg[i] * h.st.might, h.id);
+      foesNear(f.x, f.y, 90, (o) => { if (o !== f && (o.x - f.x) ** 2 + (o.y - f.y) ** 2 < 50 * 50) hurtFoe(o, W.dmg[i] * 0.5 * h.st.might, h.id); });
+    }
+    if (W.n[i]) sfx("zap", h);
+  },
+};
+/** Where star k of hunter h's orbit is right now (the same formula draws it). */
+function orbitPos(h, W, i, k, nowS) {
+  const n = W.n[i], R = W.radius[i] * h.st.area, a = nowS * W.spin[i] + k * TAU / n + (h.phase ??= [...String(h.id)].reduce((s, c) => s + c.charCodeAt(0), 0));
+  return { x: h.x + Math.cos(a) * R, y: h.y + Math.sin(a) * R };
+}
+function orbitHits(h, W, i, nowS) {
+  for (let k = 0; k < W.n[i]; k++) {
+    const p = orbitPos(h, W, i, k, nowS);
+    foesNear(p.x, p.y, 90, (f) => {
+      if ((f.x - p.x) ** 2 + (f.y - p.y) ** 2 > (KINDS[f.k].r + 10) ** 2) return;
+      f.hitAt ||= {};
+      if (nowS - (f.hitAt[h.id] || 0) < 0.45) return; // each star burns each monster twice a second at most
+      f.hitAt[h.id] = nowS; hurtFoe(f, W.dmg[i] * h.st.might, h.id);
+    });
+  }
+}
+function addShot(h, code, a, speed, life, dmg, pierce, r, real, ox = 0, oy = 0) {
+  shots.push({ code, x: h.x + ox, y: h.y + oy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, a, life, dmg, pierce, r, real, owner: h.id, hits: new Set() });
+  if (shots.length > 600) shots.splice(0, shots.length - 600);
+}
+/** Move every bolt and dagger. A real one hurts what it touches; anyone else's just sparks. */
+function stepShots(dt) {
+  for (let i = shots.length - 1; i >= 0; i--) {
+    const s = shots[i];
+    let gone = (s.life -= dt) <= 0;
+    for (let step = 0; step < 2 && !gone; step++) { // two half-steps so a fast dagger can't skip a bat
+      s.x += s.vx * dt / 2; s.y += s.vy * dt / 2;
+      foesNear(s.x, s.y, s.r + 70, (f) => {
+        if (gone || s.hits.has(f.id) || (f.x - s.x) ** 2 + (f.y - s.y) ** 2 > (KINDS[f.k].r + s.r) ** 2) return;
+        s.hits.add(f.id); spark(s.x, s.y, s.code === "M" ? "#9fd8ff" : "#ffffff", 2, 120);
+        if (s.real) hurtFoe(f, s.dmg, s.owner); else f.flash = 0.05;
+        if (--s.pierce <= 0) gone = true;
+      });
+    }
+    if (gone) shots.splice(i, 1);
+  }
+}
+function stepFx(dt) {
+  for (let i = sparks.length - 1; i >= 0; i--) { const p = sparks[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy *= 0.92; if (p.life <= 0) sparks.splice(i, 1); }
+  for (const list of [arcs, zaps, rings]) for (let i = list.length - 1; i >= 0; i--) if ((list[i].t += dt) > (list[i].dur || 0.25)) list.splice(i, 1);
+  for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt; p.y -= 34 * dt; if (p.t > 1) pops.splice(i, 1); }
+}
+function spark(x, y, color, n, speed = 200, size = 3) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * TAU, s = speed * (0.3 + Math.random()); sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.25 + Math.random() * 0.35, color, size }); }
+  if (sparks.length > 900) sparks.splice(0, sparks.length - 900);
+}
+const FOE_COLOR = { b: "#8b5cc8", g: "#7ea866", s: "#e9e3d0", w: "#8fe8ff", t: "#c4583c", E: "#ffd166", B: "#ff2d55" };
+function deathFx(f) {
+  const big = f.k === "B" ? 5 : f.k === "E" ? 3 : f.k === "t" ? 1.6 : 1;
+  spark(f.x, f.y, FOE_COLOR[f.k], Math.round(4 + big * 6), 120 + big * 70, 2 + big);
+  if (big > 1) { rings.push({ x: f.x, y: f.y, t: 0, dur: 0.35 + big * 0.1, r: KINDS[f.k].r * 2.2, color: FOE_COLOR[f.k] }); cam.shake = Math.max(cam.shake, big * 4); sfx("boom"); }
+}
+let audio = null; // made on the first tap or key (browsers block sound before that)
+const sfxAt = {};
+function sfx(kind, h) {
+  if (!audio || ATTRACT || (h && h !== me)) return;
+  const now = performance.now(); if (now - (sfxAt[kind] || 0) < 45) return; sfxAt[kind] = now;
+  const [f0, f1, dur, vol, type] = { bolt: [880, 520, 0.08, 0.025, "triangle"], swish: [300, 120, 0.12, 0.03, "sawtooth"], zap: [1400, 200, 0.12, 0.03, "square"],
+    gem: [1200, 1600, 0.05, 0.03, "sine"], level: [520, 1560, 0.4, 0.09, "triangle"], hurt: [200, 80, 0.15, 0.06, "sawtooth"], down: [400, 60, 0.7, 0.12, "sawtooth"],
+    up: [300, 900, 0.35, 0.08, "triangle"], boom: [160, 40, 0.3, 0.08, "sawtooth"], elite: [110, 70, 0.8, 0.1, "square"], boss: [70, 40, 1.4, 0.16, "sawtooth"], chest: [660, 1980, 0.5, 0.08, "triangle"] }[kind];
+  const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(audio.destination); o.start(t); o.stop(t + dur);
+}
+
+// ── NIGHT (HOST) ────────────────────────────────────────────────────────────────────
+const host = { acting: false, last: null, wokeAt: -1e9, heard: [], heardAt: -1e9, bots: new Map(), team: { k: {}, n: {} }, teamDirty: false, nextId: 0, budget: 0, field: 0, botsWritten: "",
+  lastFoes: 0, lastBots: 0, lastTeam: 0, lastRecycle: 0, summonAt: 0, allDownAt: 0, again: false, written: ["", "", ""] };
+/** The night as state has it, or the host's own newer write that hasn't come back yet. `v` only goes up. */
+function run() {
+  const r = parseOnce("run", S.shared.run, null);
+  return host.last && isHost() && (!r || host.last.v > r.v) ? host.last : r;
+}
+function writeRun(r) { // v always goes above both the shared copy and my own last write, never below
+  r = { ...r, v: Math.max(parseOnce("run", S.shared.run, null)?.v ?? 0, run()?.v ?? 0) + 1 }; host.last = r; net.setShared("run", JSON.stringify(r)); return r;
+}
+const runMinute = (r) => (r ? Math.max(0, (Date.now() - r.startAt) / 60000) : 0);
+const swarmsDue = (el) => (el >= 45 ? Math.floor((el - 45) / CONFIG.swarmEvery) + 1 : 0);
+const teamNow = () => (host.acting ? host.team : parseOnce("team", S.shared.team, { k: {}, n: {} }));
+function newRun(id) {
+  const el = CONFIG.startMinute * 60; // a late start counts the elites and swarms it skipped, less one
+  return { id, phase: "play", startAt: Date.now() + CONFIG.readyMs - el * 1000, elites: Math.max(0, Math.floor(el / 60) - 1), swarms: Math.max(0, swarmsDue(el) - 1), boss: 0, won: 0, endedAt: 0, endsAt: 0, final: null };
+}
+/** Become host: take over the horde, the kills and the bots exactly as state has them. */
+function adopt() {
+  host.acting = true; host.last = null; host.bots.clear(); host.written = ["", "", ""]; host.botsWritten = "";
+  const r = parseOnce("run", S.shared.run, null), fresh = new Map();
+  for (const name of FOE_FIELDS) {
+    const { run: rid, list } = unpackFoes(S.shared[name]);
+    if (!r || rid !== r.id % 1296) continue;
+    for (const e of list) { const f = foes.get(e.id); fresh.set(e.id, f && f.k === e.k ? Object.assign(f, { hp: e.hp, ox: 0, oy: 0 }) : newFoe(e)); } // keep where this screen already shows it
+  }
+  foes.clear(); for (const [id, f] of fresh) foes.set(id, f);
+  host.nextId = (Math.max(-1, ...foes.keys()) + 1) % 1296;
+  const tm = parse(S.shared.team, null) || {};
+  host.team = { k: { ...tm.k }, n: { ...tm.n } };
+  for (const b of parse(S.shared.bots, [])) {
+    const bot = newBot(b.id, b.n, b.c, (String(b.w || "").match(/[A-Z]/) || ["M"])[0]); // its first weapon is the one it started with
+    Object.assign(bot, { x: b.x, y: b.y, lv: b.lv || 1, xp: b.xp || 0, down: b.d || 0, rv: b.rv || 0, fx: b.fx || 1, build: parseBuild(b.w) });
+    refreshBuild(bot); bot.hp = Math.min(Number(b.hp) || bot.mh, bot.mh);
+    host.bots.set(b.id, bot);
+  }
+  for (const [id, d] of pendingHits) { const f = foes.get(id); if (!f) continue; const shown = f.dead; f.dead = false; f.hp -= d; if (f.hp <= 0) killFoe(f, me.id, !shown); } // my hits the old host never got
+  pendingHits.clear();
+  for (const f of foes.values()) f.dead = false;
+}
+function stopHosting() { host.acting = false; host.bots.clear(); lastFields = ["", "", ""]; }
+/** The tab was frozen or in the background (no frames for over a second). Someone else may have run the
+ *  night meanwhile, so forget being host, wait ~700ms for the queued state to arrive, then adopt it like a
+ *  newly elected host. Never write the stale copy back over the newer one. */
+function wakeUp(now) { if (host.acting) stopHosting(); host.last = null; host.wokeAt = now; }
+/** Not hosting: note when someone else last wrote the horde or the bots. A tab only starts hosting once
+ *  that has been quiet for 400ms, so two tabs never run the night at the same time. */
+function listenForHost(now) {
+  if (host.acting) return;
+  const raws = ["bots", "run", ...FOE_FIELDS].map((k) => S.shared[k]);
+  if (raws.some((v, i) => v !== host.heard[i])) { host.heard = raws; host.heardAt = now; }
+}
+const mayHost = (now) => isHost() && (host.acting || (now - host.wokeAt > 700 && now - host.heardAt > 400));
+function newBot(id, name, color, weapon) {
+  return { id, name, color, bot: true, x: CONFIG.arena / 2, y: CONFIG.arena / 2, vx: 0, vy: 0, fx: 1, dirX: 1, dirY: 0, hp: CONFIG.hp, mh: CONFIG.hp, lv: 1, xp: 0, picks: 0,
+    startWeapon: weapon, build: { [weapon]: 1 }, st: statsOf({}), w: "", down: 0, rv: 0, shieldUntil: 0, hurtAt: 0, cds: {}, think: 0, mvx: 0, mvy: 0, heading: Math.random() * TAU };
+}
+/** Bots fill the team up to CONFIG.seats; one leaves when a person joins. A bot never wears a person's color. */
+function fitBots(r) {
+  const humans = livePlayers().filter((id) => !(ATTRACT && id === me.id)).length, want = Math.max(0, CONFIG.seats - humans);
+  const people = new Set([me.color, ...[...views.values()].filter((v) => !v.bot).map((v) => v.color)]);
+  const used = () => new Set([...people, ...[...host.bots.values()].map((b) => b.color)]);
+  for (const b of host.bots.values()) if (people.has(b.color)) b.color = COLORS.find((c) => !used().has(c)) || b.color;
+  while (host.bots.size > want) { const b = [...host.bots.values()].pop(); rings.push({ x: b.x, y: b.y, t: 0, dur: 0.5, r: 60, color: b.color }); host.bots.delete(b.id); }
+  while (host.bots.size < want) {
+    const names = new Set([...host.bots.values()].map((b) => b.name)), weapons = new Set([...host.bots.values()].map((b) => b.startWeapon));
+    const b = newBot("b" + Math.random().toString(36).slice(2, 6), BOT_NAMES.find((n) => !names.has(n)) || "Bot", COLORS.find((c) => !used().has(c)) || "#ccc", BOT_WEAPONS.find((w) => !weapons.has(w)) || "M");
+    host.bots.set(b.id, b);
+    joinNight(b, r);
+  }
+}
+function pickKind(minute) {
+  const table = [...WAVES].reverse().find(([from]) => minute >= from)[1];
+  let roll = Math.random() * Object.values(table).reduce((a, b) => a + b, 0);
+  for (const [k, w] of Object.entries(table)) if ((roll -= w) < 0) return k;
+  return "b";
+}
+/** A free monster id whose field still has room (ids go round, so a dead one's id isn't reused soon). */
+function freeId() {
+  const counts = [0, 0, 0];
+  for (const id of foes.keys()) counts[id % 3]++;
+  for (let n = 0; n < 1296; n++) { const id = (host.nextId + n) % 1296; if (!foes.has(id) && counts[id % 3] < PER_FIELD) { host.nextId = (id + 1) % 1296; return id; } }
+  return -1;
+}
+function spawnFoe(k, p, minute) {
+  const id = freeId(); if (id < 0) return null;
+  const f = newFoe({ id, k, x: p.x, y: p.y, hp: k === "B" ? CONFIG.bossHp : Math.round(KINDS[k].hp * (1 + CONFIG.hpGrow * minute + CONFIG.hpCurve * minute * minute)) });
+  foes.set(id, f); return f;
+}
+/** Somewhere just off a random hunter's screen, inside the fence, not too close to anyone. */
+function spawnSpot(standing) {
+  const A = CONFIG.arena; let p = null;
+  for (let tries = 0; tries < 8; tries++) {
+    const h = standing[Math.floor(Math.random() * standing.length)], a = Math.random() * TAU, d = CONFIG.spawnDist + Math.random() * 140;
+    p = { x: clamp(h.x + Math.cos(a) * d, 30, A - 30), y: clamp(h.y + Math.sin(a) * d, 30, A - 30) };
+    if (standing.every((o) => (o.x - p.x) ** 2 + (o.y - p.y) ** 2 > 560 * 560)) return p;
+  }
+  return p;
+}
+function swarm(center, n, radius, minute) {
+  for (let i = 0; i < n; i++) { const a = i / n * TAU; spawnFoe("b", { x: clamp(center.x + Math.cos(a) * radius, 30, CONFIG.arena - 30), y: clamp(center.y + Math.sin(a) * radius, 30, CONFIG.arena - 30) }, minute); }
+}
+/** The night's schedule: the boss at the end, an elite every minute, bat swarms, and the horde topped up. */
+function direct(dt, r) {
+  const t = Date.now(), el = (t - r.startAt) / 1000;
+  if (el < 0) return r;
+  const minute = el / 60, standing = hunters.filter((h) => !h.down);
+  if (!standing.length) return r;
+  const change = {}, any = () => standing[Math.floor(Math.random() * standing.length)];
+  if (!r.boss && el * 1000 >= CONFIG.runMs) { if (spawnFoe("B", spawnSpot(standing), minute)) change.boss = 1; host.summonAt = t + CONFIG.bossSummonEvery * 1000; }
+  else if (!r.boss && r.elites < Math.min(Math.floor(el / 60), Math.ceil(CONFIG.runMs / 60000) - 1)) { spawnFoe("E", spawnSpot(standing), minute); change.elites = r.elites + 1; }
+  if (!r.boss && r.swarms < swarmsDue(el)) { swarm(any(), Math.round(CONFIG.swarmSize + CONFIG.swarmGrow * minute), 430, minute); change.swarms = r.swarms + 1; }
+  if (Object.keys(change).length) r = writeRun({ ...r, ...change });
+  if (r.boss && t >= host.summonAt) { // the Night Lord calls a ring of bats around someone
+    host.summonAt = t + CONFIG.bossSummonEvery * 1000;
+    if ([...foes.values()].some((f) => f.k === "B")) swarm(any(), 12, 330, minute);
+  }
+  const want = Math.min(CONFIG.maxFoes, (CONFIG.hordeStart + CONFIG.hordeGrow * minute) * (r.boss ? 0.6 : 1));
+  host.budget = Math.min(30, host.budget + dt * Math.min(CONFIG.spawnMax, CONFIG.spawnPerSec + CONFIG.spawnGrow * minute));
+  while (host.budget >= 1 && foes.size < want) { host.budget -= 1; if (!spawnFoe(pickKind(minute), spawnSpot(standing), minute)) break; }
+  if (t - host.lastRecycle > 1000) { // monsters left far behind come back in near someone
+    host.lastRecycle = t;
+    for (const f of foes.values()) if (f.k !== "B" && standing.every((h) => (h.x - f.x) ** 2 + (h.y - f.y) ** 2 > CONFIG.farDist ** 2)) Object.assign(f, spawnSpot(standing), { ox: 0, oy: 0 });
+  }
+  return r;
+}
+/** A monster died on the host (from anyone's hits). The kill counts for `by`; bots get xp. */
+function killFoe(f, by, show = true) {
+  f.dead = true; foes.delete(f.id);
+  if (show) { deathFx(f); dropLoot(f); }
+  if (by) { host.team.k[by] = (host.team.k[by] || 0) + 1; host.team.n[by] = nameOf(by); host.teamDirty = true; }
+  for (const b of host.bots.values()) if (!b.down) { giveXp(b, KINDS[f.k].xp * CONFIG.botXp); if (f.k === "E") b.picks++; }
+  if (f.k === "B") { const r = run(); if (r && r.phase === "play") endNight(r, true); }
+}
+function endNight(r, won) {
+  const t = Date.now(), tm = host.team;
+  const final = hunters.map((h) => ({ i: h.id, n: h === me ? myName : h.name, l: h.lv, k: tm.k[h.id] || 0, c: h.color })).sort((a, b) => b.k - a.k);
+  clearFoes();
+  net.setShared("team", JSON.stringify(tm)); host.teamDirty = false;
+  return writeRun({ ...r, phase: "over", won: won ? 1 : 0, endedAt: t, endsAt: t + CONFIG.resultsMs, final });
+}
+function stepBots(dt, r) {
+  const minute = runMinute(r);
+  for (const b of host.bots.values()) {
+    if (b.down) { reviveTick(b, dt); continue; }
+    while (b.picks > 0) { b.picks--; autoPick(b); }
+    const mv = botMove(b, dt), sp = CONFIG.speed * b.st.speed * 0.92;
+    moveHunter(b, mv.x * sp, mv.y * sp, dt);
+    hurtByFoes(b, dt, minute);
+  }
+}
+/** The bot brain (also your autopilot in the preview): back away from the horde, circle, help the downed when there's an opening, stay near the team. */
+function botMove(h, dt) {
+  if ((h.think -= dt) > 0) return { x: h.mvx, y: h.mvy };
+  h.think = 0.15 + Math.random() * 0.1; // bots react a little late
+  let mx = 0, my = 0;
+  foesNear(h.x, h.y, 260, (f) => {
+    const dx = h.x - f.x, dy = h.y - f.y, d = Math.hypot(dx, dy) || 1;
+    if (d < 260) { const w = (KINDS[f.k].r + 20) / d * CONFIG.botSkill; mx += dx / d * w; my += dy / d * w; }
+  });
+  h.heading += (Math.random() - 0.5) * 0.5;
+  mx += Math.cos(h.heading) * 0.8; my += Math.sin(h.heading) * 0.8;
+  const mates = hunters.filter((o) => o !== h);
+  const crowd = (o) => { let n = 0; foesNear(o.x, o.y, 120, (f) => { if ((f.x - o.x) ** 2 + (f.y - o.y) ** 2 < 120 * 120) n++; }); return n; };
+  const downed = mates.filter((o) => o.down && crowd(o) < 6).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; // wait for an opening, don't wade in
+  if (downed && Math.hypot(downed.x - h.x, downed.y - h.y) < 1400) {
+    const dx = downed.x - h.x, dy = downed.y - h.y, d = Math.hypot(dx, dy) || 1;
+    if (d > 30) { mx += dx / d * 2; my += dy / d * 2; } else { mx *= 0.15; my *= 0.15; }
+  } else if (mates.length) {
+    const cx = mates.reduce((s, o) => s + o.x, 0) / mates.length, cy = mates.reduce((s, o) => s + o.y, 0) / mates.length, d = Math.hypot(cx - h.x, cy - h.y);
+    if (d > 380) { mx += (cx - h.x) / d * 0.9; my += (cy - h.y) / d * 0.9; }
+  }
+  const A = CONFIG.arena, edge = 320;
+  if (h.x < edge) mx += (edge - h.x) / edge * 2.5; if (h.x > A - edge) mx -= (h.x - A + edge) / edge * 2.5;
+  if (h.y < edge) my += (edge - h.y) / edge * 2.5; if (h.y > A - edge) my -= (h.y - A + edge) / edge * 2.5;
+  const l = Math.hypot(mx, my);
+  h.mvx = l > 0.05 ? mx / l : 0; h.mvy = l > 0.05 ? my / l : 0;
+  if (l > 0.05) h.heading = Math.atan2(h.mvy, h.mvx);
+  return { x: h.mvx, y: h.mvy };
+}
+const botWire = (b) => ({ id: b.id, n: b.name, c: b.color, x: Math.round(b.x), y: Math.round(b.y), hp: Math.round(b.hp), mh: b.mh, lv: b.lv, xp: Math.round(b.xp), d: b.down, rv: +b.rv.toFixed(2), fx: b.fx, w: b.w, sh: Date.now() < b.shieldUntil ? 1 : 0 });
+function hostTick(dt, now) {
+  if (!host.acting) adopt();
+  let r = run();
+  const t = Date.now();
+  if (!r) { resetNight(); r = writeRun(newRun(1)); }
+  foesRun = r.id;
+  fitBots(r);
+  if (r.phase === "play") {
+    r = direct(dt, r);
+    stepBots(dt, r);
+    if (r.phase === "play" && hunters.length && hunters.every((h) => h.down)) { if (!host.allDownAt) host.allDownAt = t; else if (t - host.allDownAt > 1200) r = endNight(r, false); }
+    else host.allDownAt = 0;
+  } else if (t >= r.endsAt || host.again) {
+    resetNight(); r = writeRun(newRun(r.id + 1));
+    for (const b of host.bots.values()) joinNight(b, r);
+  }
+  host.again = false;
+  // the wire: one horde field every 100ms, the bots 8/s, the kills twice a second
+  if (now - host.lastFoes >= 100) {
+    host.lastFoes = now; const i = host.field = (host.field + 1) % 3;
+    const s = packFoes([...foes.values()].filter((f) => f.id % 3 === i && !f.dead), r.id);
+    if (s !== host.written[i]) { host.written[i] = s; net.setShared(FOE_FIELDS[i], s); }
+  }
+  if (now - host.lastBots >= 125) { host.lastBots = now; const s = JSON.stringify([...host.bots.values()].map(botWire)); if (s !== host.botsWritten) { host.botsWritten = s; net.setShared("bots", s); } }
+  if (host.teamDirty && now - host.lastTeam >= 500) { host.lastTeam = now; host.teamDirty = false; net.setShared("team", JSON.stringify(host.team)); }
+}
+/** A fresh night: no monsters, no kills. */
+function resetNight() { clearFoes(); host.team = { k: {}, n: {} }; host.teamDirty = true; host.budget = 0; host.allDownAt = 0; }
+
+// ── ME ──────────────────────────────────────────────────────────────────────────────
+const myName = (() => { try { return localStorage.getItem("mpa-name") || ""; } catch { return ""; } })() ||
+  ["Brave", "Silent", "Lucky", "Swift", "Grim", "Bright"][Math.floor(Math.random() * 6)] + " " + ["Hunter", "Raven", "Fox", "Lantern", "Wolf", "Owl"][Math.floor(Math.random() * 6)];
+const me = { id: "", name: myName, color: COLORS[0], x: CONFIG.arena / 2, y: CONFIG.arena / 2, vx: 0, vy: 0, fx: 1, dirX: 1, dirY: 0, hp: CONFIG.hp, mh: CONFIG.hp,
+  lv: 1, xp: 0, picks: 0, choices: null, startWeapon: CONFIG.startWeapon, build: {}, st: statsOf({}), w: "", down: 0, rv: 0, shieldUntil: 0, hurtAt: 0, cds: {},
+  runId: -1, lastSend: 0, sent: "", shownFor: -1, think: 0, mvx: 0, mvy: 0, heading: 0 };
+const gems = []; // MY gems and chests: { x, y, xp, chest, pull, v }
+let hunters = [me]; // everyone on the field this frame (worked out once per frame)
+/** Everyone on this screen: me, other live people, and the bots (the host's own, or as the bots field says). */
+function allHunters() {
+  const out = [me], live = new Set(livePlayers());
+  for (const v of views.values()) if (v.bot ? !host.acting : live.has(v.id)) out.push(v);
+  if (host.acting) out.push(...host.bots.values());
+  return out;
+}
+const nameOf = (id) => (id === me.id ? myName : views.get(id)?.name || host.bots.get(id)?.name || teamNow().n?.[id] || "Hunter");
+function refreshBuild(h) { h.w = buildStr(h.build); h.st = statsOf(h.build); h.mh = h.st.maxHp; h.hp = Math.min(h.hp, h.mh); }
+/** Three upgrades to pick from: weapons and passives you own (below level 5) or have a free slot for. */
+function rollChoices(h) {
+  const b = h.build, nW = Object.keys(b).filter((c) => WEAPONS[c]).length, nP = Object.keys(b).filter((c) => PASSIVES[c]).length, pool = [];
+  for (const c in WEAPONS) if (b[c] ? b[c] < MAX_LV : nW < CONFIG.maxWeapons) pool.push(c);
+  for (const c in PASSIVES) if (b[c] ? b[c] < MAX_LV : nP < CONFIG.maxPassives) pool.push(c);
+  return pool.map((c) => [c, Math.random() * (b[c] ? 1.4 : 1)]).sort((x, y) => y[1] - x[1]).slice(0, 3).map((e) => e[0]); // things you own come up a bit more
+}
+function applyPick(h, c) {
+  h.build[c] = (h.build[c] || 0) + 1;
+  if (c === "h") h.hp += PASSIVES.h.per;
+  refreshBuild(h);
+}
+/** How bots (and your autopilot) pick: new weapons first, then weapon levels, then passives. */
+function autoPick(h) {
+  const options = rollChoices(h);
+  if (!options.length) { h.hp = h.mh; return; }
+  const nW = Object.keys(h.build).filter((c) => WEAPONS[c]).length;
+  const score = (c) => (WEAPONS[c] ? (h.build[c] ? 2 : nW < 3 ? 3 : 1) : 1) + Math.random() * 1.5;
+  applyPick(h, options.sort((a, b) => score(b) - score(a))[0]);
+}
+function giveXp(h, xp) {
+  h.xp += xp;
+  while (h.xp >= xpNeed(h.lv)) {
+    h.xp -= xpNeed(h.lv); h.lv++; h.picks++; h.hp = Math.min(h.mh, h.hp + h.mh * CONFIG.levelHeal);
+    if (h === me) levelUpFx();
+  }
+}
+/** Where a hunter comes in at the start of a night (or when joining late: next to a teammate, caught up in levels). */
+function joinNight(h, r) {
+  const el = (Date.now() - r.startAt) / 1000, mates = hunters.filter((o) => o !== h && !o.down && o.lv);
+  Object.assign(h, { lv: 1, xp: 0, picks: 0, down: 0, rv: 0, cds: {}, build: { [h.startWeapon]: 1 }, shieldUntil: Date.now() + CONFIG.shieldMs });
+  refreshBuild(h);
+  let target = CONFIG.startLevel, caught = false;
+  if (el > 20 && mates.length) { const avg = mates.reduce((s, o) => s + o.lv, 0) / mates.length; if (Math.round(avg) - 1 > target) { target = Math.round(avg) - 1; caught = true; } }
+  while (h.lv < target) { h.lv++; autoPick(h); }
+  h.hp = h.mh;
+  const buddy = el > 5 && mates.length ? mates[Math.floor(Math.random() * mates.length)] : null, a = Math.random() * TAU;
+  h.x = (buddy ? buddy.x : CONFIG.arena / 2) + Math.cos(a) * (buddy ? 60 : 70); h.y = (buddy ? buddy.y : CONFIG.arena / 2) + Math.sin(a) * (buddy ? 60 : 70);
+  return caught;
+}
+function moveHunter(h, vx, vy, dt) {
+  h.vx = vx; h.vy = vy; h.x = clamp(h.x + vx * dt, 20, CONFIG.arena - 20); h.y = clamp(h.y + vy * dt, 20, CONFIG.arena - 20);
+  if (Math.abs(vx) > 10) h.fx = vx < 0 ? -1 : 1;
+  const sp = Math.hypot(vx, vy); if (sp > 10) { h.dirX = vx / sp; h.dirY = vy / sp; }
+}
+/** Monsters touching hunter h take its health away (my own on my screen; the host does the bots). */
+function hurtByFoes(h, dt, minute) {
+  if (Date.now() < h.shieldUntil) return;
+  const bites = [];
+  foesNear(h.x, h.y, 90, (f) => { const r = KINDS[f.k].r + 14; if ((f.x - h.x) ** 2 + (f.y - h.y) ** 2 < r * r) bites.push(KINDS[f.k].dps); });
+  if (!bites.length) return;
+  const dps = bites.sort((a, b) => b - a).slice(0, CONFIG.maxBiters).reduce((a, b) => a + b, 0);
+  h.hp -= dps * (1 + CONFIG.hurtGrow * minute) * (1 - h.st.armor) * dt;
+  if (performance.now() - h.hurtAt > 250) { h.hurtAt = performance.now(); if (h === me) sfx("hurt"); }
+  if (h.hp <= 0) {
+    Object.assign(h, { hp: 0, down: 1, rv: 0 });
+    spark(h.x, h.y, h.color, 24, 260, 4); rings.push({ x: h.x, y: h.y, t: 0, dur: 0.5, r: 70, color: h.color });
+    if (h === me) { sfx("down"); cam.shake = 16; publish(true); }
+  }
+}
+/** A downed hunter gets back up once a teammate has stood next to it for CONFIG.reviveMs. */
+function reviveTick(h, dt) {
+  const helped = hunters.some((o) => o !== h && !o.down && (o.x - h.x) ** 2 + (o.y - h.y) ** 2 < CONFIG.reviveRange ** 2);
+  h.rv = helped ? h.rv + dt * 1000 / CONFIG.reviveMs : Math.max(0, h.rv - dt * 0.3);
+  if (h.rv >= 1) {
+    Object.assign(h, { down: 0, rv: 0, hp: h.mh * 0.5, shieldUntil: Date.now() + CONFIG.shieldMs });
+    rings.push({ x: h.x, y: h.y, t: 0, dur: 0.6, r: 90, color: "#7ee081" }); pops.push({ x: h.x, y: h.y - 40, t: 0, text: "BACK UP!", color: "#7ee081" });
+    if (h === me) { sfx("up"); publish(true); }
+  }
+}
+function levelUpFx() {
+  rings.push({ x: me.x, y: me.y, t: 0, dur: 0.5, r: 170, color: "#ffd166" }); pops.push({ x: me.x, y: me.y - 40, t: 0, text: "LEVEL UP", color: "#ffd166", big: 1 });
+  sfx("level");
+  foesNear(me.x, me.y, 210, (f) => { if ((f.x - me.x) ** 2 + (f.y - me.y) ** 2 < 170 * 170) hurtFoe(f, CONFIG.novaDamage * me.st.might, me.id); }); // the level-up nova
+}
+/** A monster died on my screen: my own copy of its gem (or chest) drops there. */
+function dropLoot(f) {
+  const r = run();
+  if (!r || r.phase !== "play" || f.k === "B") return;
+  gems.push(f.k === "E" ? { x: f.x, y: f.y, chest: 1 } : { x: f.x + (Math.random() - 0.5) * 10, y: f.y + (Math.random() - 0.5) * 10, xp: KINDS[f.k].xp });
+  if (gems.length > CONFIG.maxGems) { // too many: the oldest gem's xp goes into the newest
+    const i = gems.findIndex((g) => !g.chest && !g.pull), newest = [...gems].reverse().find((g) => !g.chest);
+    if (i >= 0 && newest && gems[i] !== newest) { newest.xp += gems[i].xp; gems.splice(i, 1); }
+  }
+}
+function collectGems(dt) {
+  const reach = CONFIG.magnet * me.st.magnet;
+  for (let i = gems.length - 1; i >= 0; i--) {
+    const g = gems[i], dx = me.x - g.x, dy = me.y - g.y, d = Math.hypot(dx, dy);
+    if (!g.pull && d < (g.chest ? 50 : reach)) g.pull = 1;
+    if (!g.pull) continue;
+    g.v = Math.min(1100, (g.v || 140) + 1600 * dt);
+    if (d < 16 + g.v * dt) {
+      gems.splice(i, 1);
+      if (g.chest) { me.picks++; sfx("chest"); pops.push({ x: me.x, y: me.y - 46, t: 0, text: "TREASURE!", color: "#ffd166", big: 1 }); rings.push({ x: me.x, y: me.y, t: 0, dur: 0.5, r: 80, color: "#ffd166" }); }
+      else { giveXp(me, g.xp); sfx("gem"); }
+      continue;
+    }
+    g.x += dx / d * g.v * dt; g.y += dy / d * g.v * dt;
+  }
+}
+/** A new night (or I just arrived): fresh build, no gems; a late joiner is caught up. */
+function startNight(r) {
+  me.runId = r.id; gems.length = 0; shots.length = 0; me.choices = null; renderCards();
+  if (joinNight(me, r)) toast(`Caught up to level ${me.lv}`, "Your team was already deep into the night", 2600);
+  $("over").hidden = true;
+  publish(true);
+}
+function myTick(dt, r) {
+  if (me.runId !== r.id) startNight(r);
+  if (r.phase === "play" && me.down) reviveTick(me, dt);
+  if (r.phase !== "play" || me.down) { me.vx = me.vy = 0; publish(false); return; }
+  const mv = ATTRACT ? botMove(me, dt) : readMove(), sp = CONFIG.speed * me.st.speed;
+  moveHunter(me, mv.x * sp, mv.y * sp, dt);
+  hurtByFoes(me, dt, runMinute(r));
+  collectGems(dt);
+  if (ATTRACT) while (me.picks > 0) { me.picks--; autoPick(me); }
+  publish(false);
+}
+function publish(force) {
+  const now = performance.now();
+  if (!force && now - me.lastSend < 80) return; // ~12/s
+  const s = JSON.stringify({ x: Math.round(me.x), y: Math.round(me.y), hp: Math.round(me.hp), mh: me.mh, lv: me.lv, d: me.down, rv: +me.rv.toFixed(2), fx: me.fx, w: me.w, sh: Date.now() < me.shieldUntil ? 1 : 0 });
+  if (s === me.sent && !force && now - me.lastSend < 1000) return; // standing still: no need to say it again yet
+  me.lastSend = now; me.sent = s;
+  net.me.set("p", s);
+}
+/** Two people in one color: the one with the higher sessionId picks a color no person or bot has. */
+function fixColor() {
+  const others = Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId);
+  if (!others.some(([id, p]) => p.c === me.color && id < net.sessionId)) return;
+  const botColors = (host.acting ? [...host.bots.values()] : [...views.values()].filter((v) => v.bot)).map((b) => b.color);
+  const taken = new Set([...others.map(([, p]) => p.c), ...botColors]), free = COLORS.find((c) => !taken.has(c));
+  if (free) { me.color = free; net.me.set("c", free); }
+}
+// Everyone else (and, off the host, the bots), eased toward where they last said they were.
+const views = new Map();
+function syncViews(dt, now) {
+  const k = 1 - Math.pow(0.0001, dt), seen = new Set(), live = new Set(livePlayers()), list = [];
+  for (const [id, p] of Object.entries(S.entities.players || {})) {
+    if (id === me.id || !live.has(id)) continue;
+    const q = parseOnce("p:" + id, p.p, null);
+    if (q && typeof q.x === "number") list.push({ ...q, id, name: p.n || "Hunter", color: p.c || "#ccc", raw: p.p });
+  }
+  if (!host.acting) for (const b of parseOnce("bots", S.shared.bots, [])) list.push({ ...b, name: b.n, color: b.c, bot: true, raw: S.shared.bots });
+  for (const s of list) {
+    seen.add(s.id);
+    let v = views.get(s.id);
+    if (!v) { v = { id: s.id, bot: !!s.bot, x: s.x, y: s.y, tx: s.x, ty: s.y, vx: 0, vy: 0, dirX: 1, dirY: 0, at: now, raw: null, cds: {}, w: null, build: {}, st: statsOf({}) }; views.set(s.id, v); }
+    if (s.raw !== v.raw) { // a fresh update: guess the velocity from the last one
+      const gap = Math.max(40, now - v.at), cap = CONFIG.speed * 2;
+      if (v.raw !== null) { v.vx = clamp((s.x - v.tx) / gap * 1000, -cap, cap); v.vy = clamp((s.y - v.ty) / gap * 1000, -cap, cap); }
+      if (v.raw !== null && s.d && !v.down) { spark(v.x, v.y, s.color, 24, 260, 4); rings.push({ x: v.x, y: v.y, t: 0, dur: 0.5, r: 70, color: s.color }); }
+      Object.assign(v, { name: s.name, color: s.color, hp: s.hp, mh: s.mh || CONFIG.hp, lv: s.lv || 1, down: s.d || 0, rv: s.rv || 0, fx: s.fx || 1, shield: s.sh, raw: s.raw, tx: s.x, ty: s.y, at: now });
+      if (s.w !== v.w) { v.w = s.w; v.build = parseBuild(s.w); v.st = statsOf(v.build); }
+      if (Math.hypot(v.tx - v.x, v.ty - v.y) > 300) { v.x = v.tx; v.y = v.ty; v.vx = v.vy = 0; } // came in somewhere new: jump there
+    }
+    if (now - v.at > 200 || v.down) { v.vx *= 0.85; v.vy *= 0.85; } // no news (they stopped): stop guessing ahead
+    const ahead = Math.min(0.15, (now - v.at) / 1000);
+    v.x += (v.tx + v.vx * ahead - v.x) * k; v.y += (v.ty + v.vy * ahead - v.y) * k;
+    const sp = Math.hypot(v.vx, v.vy); if (sp > 30) { v.dirX = v.vx / sp; v.dirY = v.vy / sp; }
+  }
+  for (const id of views.keys()) if (!seen.has(id)) views.delete(id);
+}
+
+// ── DRAW ────────────────────────────────────────────────────────────────────────────
+const cv = document.getElementById("game"), ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function fit() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; }
+addEventListener("resize", fit); addEventListener("orientationchange", fit); fit();
+const cam = { x: CONFIG.arena / 2, y: CONFIG.arena / 2, shake: 0 };
+const zoom = () => (ATTRACT ? W / 900 : clamp(Math.sqrt((W * H) / (1150 * 700)), 0.55, 1.3)); // about 1150 × 700 px of graveyard on screen
+const view = { x0: 0, y0: 0, x1: 0, y1: 0 };
+const onScreen = (x, y, m) => x > view.x0 - m && x < view.x1 + m && y > view.y0 - m && y < view.y1 + m;
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// The graveyard's look (the same on every screen; it never blocks anyone).
+const DECOR = (() => {
+  const rnd = mulberry32(1109), A = CONFIG.arena, c = A / 2, out = { blots: [], tufts: [], graves: [], trees: [], lamps: [] };
+  const spot = (m) => { for (;;) { const x = m + rnd() * (A - 2 * m), y = m + rnd() * (A - 2 * m); if (Math.hypot(x - c, y - c) > 170) return { x, y }; } };
+  for (let i = 0; i < 70; i++) out.blots.push({ ...spot(0), r: 120 + rnd() * 260, light: rnd() < 0.5 });
+  for (let i = 0; i < 800; i++) out.tufts.push({ ...spot(10), s: 0.6 + rnd() * 0.9 });
+  for (let i = 0; i < 160; i++) out.graves.push({ ...spot(60), kind: Math.floor(rnd() * 3), tilt: (rnd() - 0.5) * 0.3 });
+  for (let i = 0; i < 42; i++) out.trees.push({ ...spot(80), arms: Array.from({ length: 5 }, (_, k) => ({ a: k / 5 * TAU + rnd() * 0.8, l: 34 + rnd() * 30 })) });
+  for (let i = 0; i < 22; i++) out.lamps.push(spot(100));
+  return out;
+})();
+function darken(hex, f) { const n = parseInt(hex.slice(1), 16); return `rgb(${((n >> 16) & 255) * f | 0},${((n >> 8) & 255) * f | 0},${(n & 255) * f | 0})`; }
+
+function draw(t, dt, r) {
+  const z = zoom();
+  cam.x += (me.x - cam.x) * Math.min(1, dt * (ATTRACT ? 2.5 : 8)); cam.y += (me.y - cam.y) * Math.min(1, dt * (ATTRACT ? 2.5 : 8)); cam.shake *= Math.pow(0.02, dt);
+  Object.assign(view, { x0: cam.x - W / 2 / z, y0: cam.y - H / 2 / z, x1: cam.x + W / 2 / z, y1: cam.y + H / 2 / z });
+  const sx = (Math.random() - 0.5) * cam.shake, sy = (Math.random() - 0.5) * cam.shake;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - cam.x * z + sx), DPR * (H / 2 - cam.y * z + sy));
+  drawGround(t);
+  drawGems(t);
+  for (const h of hunters) if (h.build.A && !h.down) drawAura(h, t);
+  drawFoes(t);
+  for (const h of hunters) drawHunter(h, t);
+  drawWeaponFx(t);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawNight(r);
+  if (!ATTRACT) drawArrows(z);
+  const hurt = performance.now() - me.hurtAt;
+  if (hurt < 250 && !ATTRACT && !me.down) { const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.7); g.addColorStop(0, "#ff000000"); g.addColorStop(1, `rgba(255,30,60,${0.35 * (1 - hurt / 250)})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+}
+function drawGround(t) {
+  const A = CONFIG.arena;
+  ctx.fillStyle = "#121a2c"; ctx.fillRect(0, 0, A, A);
+  ctx.globalAlpha = 0.45;
+  for (const b of DECOR.blots) if (onScreen(b.x, b.y, b.r)) { ctx.fillStyle = b.light ? "#1a2540" : "#0b1120"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  for (const l of DECOR.lamps) if (onScreen(l.x, l.y, 220)) { // lantern light pools
+    const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, 210); g.addColorStop(0, "#ffb55a2e"); g.addColorStop(1, "#ffb55a00");
+    ctx.fillStyle = g; ctx.fillRect(l.x - 210, l.y - 210, 420, 420);
+  }
+  ctx.strokeStyle = "#24324e"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.beginPath();
+  for (const g of DECOR.tufts) if (onScreen(g.x, g.y, 12)) { const s = g.s; ctx.moveTo(g.x - 5 * s, g.y); ctx.lineTo(g.x - 3 * s, g.y - 7 * s); ctx.moveTo(g.x, g.y); ctx.lineTo(g.x + s, g.y - 10 * s); ctx.moveTo(g.x + 5 * s, g.y); ctx.lineTo(g.x + 4 * s, g.y - 6 * s); }
+  ctx.stroke();
+  for (const g of DECOR.graves) if (onScreen(g.x, g.y, 40)) {
+    ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.tilt);
+    ctx.fillStyle = "#00000055"; ctx.beginPath(); ctx.ellipse(4, 14, 18, 6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#333c58"; ctx.strokeStyle = "#56628a"; ctx.lineWidth = 2;
+    if (g.kind === 0) { ctx.beginPath(); ctx.roundRect(-12, -18, 24, 32, [12, 12, 2, 2]); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#232a40"; ctx.fillRect(-6, -8, 12, 2.5); ctx.fillRect(-6, -2, 12, 2.5); }
+    else if (g.kind === 1) { ctx.fillRect(-3.5, -22, 7, 36); ctx.fillRect(-11, -14, 22, 7); ctx.strokeRect(-3.5, -22, 7, 36); }
+    else { ctx.beginPath(); ctx.roundRect(-16, -8, 32, 20, 4); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
+  ctx.strokeStyle = "#0a0d17"; ctx.lineCap = "round";
+  for (const tr of DECOR.trees) if (onScreen(tr.x, tr.y, 90)) { // dead trees, seen from above
+    ctx.fillStyle = "#00000040"; ctx.beginPath(); ctx.arc(tr.x + 6, tr.y + 8, 42, 0, TAU); ctx.fill();
+    ctx.lineWidth = 6; ctx.beginPath();
+    for (const a of tr.arms) { const ex = tr.x + Math.cos(a.a) * a.l, ey = tr.y + Math.sin(a.a) * a.l; ctx.moveTo(tr.x, tr.y); ctx.lineTo(ex, ey); }
+    ctx.stroke(); ctx.lineWidth = 3; ctx.beginPath();
+    for (const a of tr.arms) { const ex = tr.x + Math.cos(a.a) * a.l, ey = tr.y + Math.sin(a.a) * a.l; ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(a.a + 0.6) * 16, ey + Math.sin(a.a + 0.6) * 16); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(a.a - 0.5) * 13, ey + Math.sin(a.a - 0.5) * 13); }
+    ctx.stroke(); ctx.fillStyle = "#151a28"; ctx.beginPath(); ctx.arc(tr.x, tr.y, 9, 0, TAU); ctx.fill();
+  }
+  for (const l of DECOR.lamps) if (onScreen(l.x, l.y, 30)) {
+    ctx.fillStyle = "#1a1f2e"; ctx.fillRect(l.x - 3, l.y - 4, 6, 18);
+    ctx.fillStyle = "#ffcf7a"; ctx.globalAlpha = 0.85 + Math.sin(t * 9 + l.x) * 0.15; ctx.beginPath(); ctx.arc(l.x, l.y - 8, 6, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  // the iron fence around the graveyard
+  ctx.strokeStyle = "#6b4cff1c"; ctx.lineWidth = 80; ctx.strokeRect(-40, -40, A + 80, A + 80);
+  ctx.strokeStyle = "#2b3352"; ctx.lineWidth = 5; ctx.strokeRect(-4, -4, A + 8, A + 8);
+  ctx.fillStyle = "#3a4468"; ctx.beginPath();
+  for (let p = 0; p <= A; p += 60) for (const [x, y] of [[p, -4], [p, A + 4], [-4, p], [A + 4, p]]) if (onScreen(x, y, 20)) { ctx.moveTo(x - 4, y + 6); ctx.lineTo(x, y - 10); ctx.lineTo(x + 4, y + 6); }
+  ctx.fill();
+}
+function drawGems(t) {
+  const groups = [["#5ab0ff", []], ["#7ee081", []], ["#ff5d73", []]];
+  for (const g of gems) if (!g.chest && onScreen(g.x, g.y, 20)) groups[g.xp >= 10 ? 2 : g.xp >= 3 ? 1 : 0][1].push(g);
+  for (const [color, list] of groups) {
+    if (!list.length) continue;
+    ctx.fillStyle = color + "30"; ctx.beginPath(); for (const g of list) { ctx.moveTo(g.x + 10, g.y); ctx.arc(g.x, g.y, 10, 0, TAU); } ctx.fill();
+    ctx.fillStyle = color; ctx.beginPath();
+    for (const g of list) { const s = g.xp >= 10 ? 7 : 5; ctx.moveTo(g.x, g.y - s * 1.35); ctx.lineTo(g.x + s, g.y); ctx.lineTo(g.x, g.y + s * 1.35); ctx.lineTo(g.x - s, g.y); ctx.closePath(); }
+    ctx.fill();
+  }
+  ctx.fillStyle = "#ffffffcc"; ctx.beginPath(); for (const [, list] of groups) for (const g of list) ctx.rect(g.x - 1.5, g.y - 3, 2, 2); ctx.fill();
+  for (const g of gems) if (g.chest && onScreen(g.x, g.y, 40)) { // a chest from an elite
+    const bob = Math.sin(t * 4) * 2;
+    ctx.fillStyle = "#ffd16633"; ctx.beginPath(); ctx.arc(g.x, g.y, 26 + Math.sin(t * 6) * 3, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#8a5a2b"; ctx.fillRect(g.x - 13, g.y - 8 + bob, 26, 18); ctx.fillStyle = "#ffd166"; ctx.fillRect(g.x - 13, g.y - 3 + bob, 26, 3); ctx.fillRect(g.x - 3, g.y - 5 + bob, 6, 8);
+  }
+}
+function drawAura(h, t) {
+  const i = Math.min(MAX_LV, h.build.A) - 1, R = WEAPONS.A.radius[i] * h.st.area * (1 + Math.sin(t * 5) * 0.03);
+  ctx.fillStyle = "#7ee0ff12"; ctx.beginPath(); ctx.arc(h.x, h.y, R, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#7ee0ff55"; ctx.lineWidth = 2; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -t * 30; ctx.stroke(); ctx.setLineDash([]);
+}
+/** Every monster, drawn kind by kind in batches (one path per color) so hundreds stay cheap. */
+function drawFoes(t) {
+  const by = { b: [], g: [], s: [], w: [], t: [], E: [], B: [] };
+  for (const f of foes.values()) if (!f.dead && onScreen(f.x, f.y, KINDS[f.k].r * 2.6)) by[f.k].push(f);
+  const batch = (color, list, fn) => { if (!list.length) return; ctx.fillStyle = color; ctx.beginPath(); for (const f of list) fn(f); ctx.fill(); };
+  const circle = (x, y, r) => { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); };
+  batch("#00000050", Object.values(by).flat(), (f) => { const r = KINDS[f.k].r; ctx.moveTo(f.x + r, f.y + r * 0.8); ctx.ellipse(f.x, f.y + r * 0.8, r, r * 0.32, 0, 0, TAU); });
+  // bats: wings that flap
+  batch("#4b2a73", by.b, (f) => {
+    const flap = Math.sin(t * 22 + f.id), x = f.x, y = f.y - 6 + flap * 1.5, wy = y - 4 - flap * 7;
+    ctx.moveTo(x - 4, y); ctx.lineTo(x - 19, wy); ctx.lineTo(x - 14, y + 3); ctx.lineTo(x - 9, y + 1); ctx.lineTo(x - 4, y + 5); ctx.lineTo(x + 4, y + 5); ctx.lineTo(x + 9, y + 1); ctx.lineTo(x + 14, y + 3); ctx.lineTo(x + 19, wy); ctx.lineTo(x + 4, y); ctx.closePath();
+    circle(x, y, 6.5);
+  });
+  batch("#ff5d73", by.b, (f) => { const y = f.y - 7 + Math.sin(t * 22 + f.id) * 1.5; ctx.rect(f.x - 3.5, y, 2.5, 2.5); ctx.rect(f.x + 1, y, 2.5, 2.5); });
+  // ghouls: a hunched green body, a head toward you
+  batch("#4b7240", by.g, (f) => { ctx.moveTo(f.x + 16, f.y); ctx.ellipse(f.x, f.y, 16, 13, 0, 0, TAU); });
+  batch("#7ea866", by.g, (f) => { circle(f.x + f.face * 3, f.y - 10, 9); circle(f.x + f.face * 13, f.y - 1, 4.5); circle(f.x - f.face * 9, f.y + 2, 4.5); });
+  batch("#ffe066", by.g, (f) => { const x = f.x + f.face * 5; ctx.rect(x - 4, f.y - 12, 3, 3); ctx.rect(x + 1, f.y - 12, 3, 3); });
+  // skeletons: a skull with dark eyes over little ribs
+  batch("#b9b29d", by.s, (f) => { ctx.moveTo(f.x + 9, f.y + 6); ctx.ellipse(f.x, f.y + 6, 9, 7, 0, 0, TAU); });
+  batch("#e9e3d0", by.s, (f) => { circle(f.x, f.y - 6, 11); ctx.rect(f.x - 6, f.y + 2, 12, 5); });
+  batch("#1a1426", by.s, (f) => { circle(f.x - 4 + f.face, f.y - 6, 3.2); circle(f.x + 4 + f.face, f.y - 6, 3.2); ctx.rect(f.x - 5, f.y + 6, 10, 1.6); });
+  // wraiths: see-through, with a wavy tail
+  ctx.globalAlpha = 0.72;
+  batch("#7fd8f5", by.w, (f) => {
+    const y = f.y - 4 + Math.sin(t * 3 + f.id) * 3, wob = Math.sin(t * 8 + f.id) * 3;
+    ctx.moveTo(f.x - 13, y); ctx.arc(f.x, y, 13, Math.PI, 0); ctx.lineTo(f.x + 11 + wob, y + 16); ctx.lineTo(f.x + 4, y + 11); ctx.lineTo(f.x - wob, y + 20); ctx.lineTo(f.x - 5, y + 11); ctx.lineTo(f.x - 12 + wob, y + 16); ctx.closePath();
+  });
+  ctx.globalAlpha = 1;
+  batch("#0b1d33", by.w, (f) => { const y = f.y - 6 + Math.sin(t * 3 + f.id) * 3; ctx.moveTo(f.x - 2, y); ctx.ellipse(f.x - 4.5, y, 2.6, 4, 0, 0, TAU); ctx.moveTo(f.x + 7, y); ctx.ellipse(f.x + 4.5, y, 2.6, 4, 0, 0, TAU); });
+  // brutes: big, horned
+  batch("#e8dcc0", by.t, (f) => { for (const s of [-1, 1]) { ctx.moveTo(f.x + s * 12, f.y - 18); ctx.lineTo(f.x + s * 24, f.y - 34); ctx.lineTo(f.x + s * 20, f.y - 14); ctx.closePath(); } });
+  batch("#8e4430", by.t, (f) => circle(f.x, f.y, 27));
+  batch("#6b2f22", by.t, (f) => { ctx.moveTo(f.x + 15, f.y + 8); ctx.ellipse(f.x, f.y + 8, 15, 11, 0, 0, TAU); });
+  batch("#ffb347", by.t, (f) => { const x = f.x + f.face * 5; circle(x - 7, f.y - 8, 3.5); circle(x + 7, f.y - 8, 3.5); });
+  // elites: a golden brute with a crown and a glow
+  for (const f of by.E) {
+    ctx.strokeStyle = "#ffd16688"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, 42 + Math.sin(t * 6) * 4, 0, TAU); ctx.stroke();
+    ctx.fillStyle = "#b8862e"; ctx.beginPath(); ctx.arc(f.x, f.y, 34, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#ffe08a"; ctx.beginPath(); ctx.moveTo(f.x - 18, f.y - 26); for (let k = 0; k < 5; k++) { ctx.lineTo(f.x - 18 + k * 9 + 4.5, f.y - 44); ctx.lineTo(f.x - 18 + (k + 1) * 9, f.y - 28); } ctx.lineTo(f.x + 18, f.y - 22); ctx.lineTo(f.x - 18, f.y - 22); ctx.fill();
+    ctx.fillStyle = "#ff3d3d"; ctx.beginPath(); circle(f.x - 10 + f.face * 5, f.y - 6, 5); circle(f.x + 10 + f.face * 5, f.y - 6, 5); ctx.fill();
+    ctx.fillStyle = "#0009"; ctx.fillRect(f.x - 30, f.y + 42, 60, 6); ctx.fillStyle = "#ffd166"; ctx.fillRect(f.x - 30, f.y + 42, 60 * clamp(f.hp / f.max, 0, 1), 6);
+  }
+  // the Night Lord: wide wings, a crown, burning eyes
+  for (const f of by.B) {
+    const flap = Math.sin(t * 3) * 14, pulse = 1 + Math.sin(t * 5) * 0.06;
+    ctx.fillStyle = "#ff2d5520"; ctx.beginPath(); ctx.arc(f.x, f.y, 120 * pulse, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#2a1446"; ctx.beginPath();
+    for (const s of [-1, 1]) { ctx.moveTo(f.x + s * 30, f.y - 20); ctx.lineTo(f.x + s * 160, f.y - 70 - flap); ctx.lineTo(f.x + s * 135, f.y - 10); ctx.lineTo(f.x + s * 150, f.y + 30 - flap * 0.5); ctx.lineTo(f.x + s * 95, f.y + 15); ctx.lineTo(f.x + s * 100, f.y + 55); ctx.lineTo(f.x + s * 30, f.y + 25); ctx.closePath(); }
+    ctx.fill();
+    ctx.fillStyle = "#41206b"; ctx.beginPath(); ctx.arc(f.x, f.y, 66, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#5a2f8f"; ctx.beginPath(); ctx.ellipse(f.x, f.y + 18, 38, 30, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.moveTo(f.x - 34, f.y - 52); for (let k = 0; k < 5; k++) { ctx.lineTo(f.x - 34 + k * 17 + 8.5, f.y - 84); ctx.lineTo(f.x - 34 + (k + 1) * 17, f.y - 56); } ctx.lineTo(f.x + 34, f.y - 46); ctx.lineTo(f.x - 34, f.y - 46); ctx.fill();
+    ctx.fillStyle = "#ff2d55"; ctx.shadowColor = "#ff2d55"; ctx.shadowBlur = 18; ctx.beginPath(); circle(f.x - 20 + f.face * 6, f.y - 18, 8); circle(f.x + 20 + f.face * 6, f.y - 18, 8); ctx.fill(); ctx.shadowBlur = 0;
+  }
+  const lit = Object.values(by).flat().filter((f) => f.flash > 0); // hit flash
+  if (lit.length) { ctx.globalAlpha = 0.65; batch("#ffffff", lit, (f) => circle(f.x, f.y - 2, KINDS[f.k].r * 0.9)); ctx.globalAlpha = 1; }
+}
+function drawHunter(h, t) {
+  const x = h.x, y = h.y;
+  ctx.fillStyle = "#00000066"; ctx.beginPath(); ctx.ellipse(x, y + 13, 15, 6, 0, 0, TAU); ctx.fill();
+  if (h === me && !h.down) { ctx.strokeStyle = "#ffd16699"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(x, y + 13, 22, 9, 0, 0, TAU); ctx.stroke(); }
+  if (h.down) { // lying down, a ring that fills while someone helps
+    ctx.fillStyle = "#6b7290"; ctx.beginPath(); ctx.ellipse(x, y + 4, 18, 9, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = darken(h.color, 0.5); ctx.beginPath(); ctx.arc(x - 12, y + 2, 7, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#ffffff30"; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, CONFIG.reviveRange * 0.6, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = "#7ee081"; ctx.beginPath(); ctx.arc(x, y, CONFIG.reviveRange * 0.6, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(h.rv, 0, 1)); ctx.stroke();
+    ctx.fillStyle = "#ff6b6b"; ctx.font = "900 20px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.globalAlpha = 0.6 + Math.sin(t * 6) * 0.4; ctx.fillText("!", x, y - 26); ctx.globalAlpha = 1;
+  } else {
+    if ((h === me ? Date.now() < me.shieldUntil : h.shield || Date.now() < h.shieldUntil) && Math.floor(t * 10) % 2) ctx.globalAlpha = 0.45;
+    const bob = Math.hypot(h.vx || 0, h.vy || 0) > 20 ? Math.abs(Math.sin(t * 12)) * 2 : 0;
+    ctx.fillStyle = h.color; ctx.beginPath(); ctx.moveTo(x - 15, y + 12); ctx.quadraticCurveTo(x - 17, y - 6 - bob, x, y - 15 - bob); ctx.quadraticCurveTo(x + 17, y - 6 - bob, x + 15, y + 12); ctx.closePath(); ctx.fill(); // cloak
+    ctx.fillStyle = darken(h.color, 0.55); ctx.beginPath(); ctx.arc(x, y - 10 - bob, 9.5, 0, TAU); ctx.fill(); // hood
+    ctx.fillStyle = "#0b0d18"; ctx.beginPath(); ctx.ellipse(x + h.fx * 2.5, y - 9 - bob, 5.8, 5.2, 0, 0, TAU); ctx.fill(); // face
+    ctx.fillStyle = "#fff6c8"; ctx.fillRect(x + h.fx * 2.5 - 3.5, y - 10.5 - bob, 2.2, 2.2); ctx.fillRect(x + h.fx * 2.5 + 1.3, y - 10.5 - bob, 2.2, 2.2); // eyes
+    ctx.fillStyle = "#ffcf7a"; ctx.beginPath(); ctx.arc(x + h.fx * 15, y + 3, 3.5, 0, TAU); ctx.fill(); ctx.fillStyle = "#ffcf7a30"; ctx.beginPath(); ctx.arc(x + h.fx * 15, y + 3, 10, 0, TAU); ctx.fill(); // a lantern
+    ctx.globalAlpha = 1;
+  }
+  if (ATTRACT) return;
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = h === me ? "#ffd166" : "#ffffffc0";
+  ctx.fillText(h === me ? "You" : h.name, x, y - 30);
+  if (!h.down) { ctx.fillStyle = "#0009"; ctx.fillRect(x - 18, y + 21, 36, 4); ctx.fillStyle = h.hp / h.mh > 0.35 ? "#7ee081" : "#ff6b6b"; ctx.fillRect(x - 18, y + 21, 36 * clamp(h.hp / h.mh, 0, 1), 4); }
+}
+function drawWeaponFx(t) {
+  const nowS = performance.now() / 1000;
+  ctx.lineCap = "round";
+  for (const s of shots) { // bolts: a glowing ball with a tail; daggers: a silver streak
+    if (!onScreen(s.x, s.y, 30)) continue;
+    if (s.code === "M") { ctx.strokeStyle = "#9fd8ff66"; ctx.lineWidth = s.r * 1.6; ctx.beginPath(); ctx.moveTo(s.x - s.vx * 0.04, s.y - s.vy * 0.04); ctx.lineTo(s.x, s.y); ctx.stroke(); ctx.fillStyle = "#e8f6ff"; ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 0.7, 0, TAU); ctx.fill(); }
+    else { ctx.strokeStyle = "#e6ecff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.x - Math.cos(s.a) * 16, s.y - Math.sin(s.a) * 16); ctx.lineTo(s.x, s.y); ctx.stroke(); }
+  }
+  for (const h of hunters) if (h.build.O && !h.down) { // orbiting stars
+    const i = Math.min(MAX_LV, h.build.O) - 1;
+    for (let k = 0; k < WEAPONS.O.n[i]; k++) {
+      const p = orbitPos(h, WEAPONS.O, i, k, nowS);
+      ctx.fillStyle = "#ffd16640"; ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#fff3c4"; ctx.beginPath(); for (let j = 0; j < 8; j++) { const a = j / 8 * TAU + nowS * 6, rr = j % 2 ? 3 : 9; ctx.lineTo(p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr); } ctx.fill();
+    }
+  }
+  for (const a of arcs) { // scythe sweeps follow their hunter
+    const k = a.t / 0.25, base = a.side > 0 ? 0 : Math.PI, sweep = -1.1 + k * 2.2;
+    ctx.strokeStyle = `rgba(199,155,255,${0.85 * (1 - k)})`; ctx.lineWidth = 16 * (1 - k * 0.5);
+    ctx.beginPath(); ctx.arc(a.h.x, a.h.y, a.reach * 0.75, base - 1.1, base + Math.min(1.1, sweep)); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${0.7 * (1 - k)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.h.x, a.h.y, a.reach * 0.85, base - 1.1, base + Math.min(1.1, sweep)); ctx.stroke();
+  }
+  for (const z of zaps) { // lightning from the sky
+    const k = z.t / 0.25, rnd = mulberry32(z.seed * 1000 | 0);
+    ctx.strokeStyle = `rgba(255,242,122,${1 - k})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(z.x + (rnd() - 0.5) * 60, z.y - 320);
+    for (let j = 1; j <= 6; j++) ctx.lineTo(z.x + (j < 6 ? (rnd() - 0.5) * 40 : 0), z.y - 320 + j * 320 / 6);
+    ctx.stroke(); ctx.fillStyle = `rgba(255,250,200,${0.6 * (1 - k)})`; ctx.beginPath(); ctx.arc(z.x, z.y, 30 + k * 20, 0, TAU); ctx.fill();
+  }
+  for (const r of rings) { const k = r.t / (r.dur || 0.25); ctx.globalAlpha = 1 - k; ctx.strokeStyle = r.color; ctx.lineWidth = 5 * (1 - k) + 1; ctx.beginPath(); ctx.arc(r.x, r.y, r.r * (0.25 + k * 0.75), 0, TAU); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  for (const p of sparks) { ctx.globalAlpha = Math.min(1, p.life * 3); ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); }
+  ctx.globalAlpha = 1; ctx.textAlign = "center";
+  for (const p of pops) { ctx.globalAlpha = Math.max(0, 1 - p.t); ctx.font = `900 ${p.big ? 22 : 14}px system-ui, sans-serif`; ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y); }
+  ctx.globalAlpha = 1;
+}
+/** The dark around the edges of the screen (and a warm dawn when the night is won). */
+function drawNight(r) {
+  const dawn = r && r.phase === "over" && r.won;
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.hypot(W, H) * 0.55);
+  g.addColorStop(0, "#02030a00"); g.addColorStop(1, dawn ? "#ff9a5a55" : ATTRACT ? "#02030a90" : "#02030ad0");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  if (dawn) { ctx.fillStyle = "#ffb07022"; ctx.fillRect(0, 0, W, H); }
+}
+function drawArrows(z) { // teammates off screen: an arrow at the edge (a pulsing one when they need help)
+  for (const h of hunters) {
+    if (h === me) continue;
+    const fx = (h.x - cam.x) * z + W / 2, fy = (h.y - cam.y) * z + H / 2;
+    if (fx > 0 && fx < W && fy > 0 && fy < H) continue;
+    const a = Math.atan2(fy - H / 2, fx - W / 2), k = Math.min((W / 2 - 26) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 26) / Math.abs(Math.sin(a) || 1e-6));
+    ctx.save(); ctx.translate(W / 2 + Math.cos(a) * k, H / 2 + Math.sin(a) * k); ctx.rotate(a);
+    ctx.fillStyle = h.down ? (Math.floor(performance.now() / 250) % 2 ? "#ff6b6b" : "#ffffff") : h.color;
+    ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -9); ctx.lineTo(-8, 9); ctx.fill(); ctx.restore();
+  }
+}
+
+// ── HUD & RESULTS ───────────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const clock = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+const HUD_IDS = ["lvl", "build", "clock", "team", "msg", "hint", "net"];
+const startedAt = performance.now();
+let board = null, dropped = false, banner = { text: "", until: 0 }, seenRun = { id: -1 };
+function toast(title, sub, ms) { banner = { text: `${esc(title)}<small>${esc(sub)}</small>`, until: performance.now() + ms }; }
+/** Banners for what the host just did to the night (from the `run` field, so everyone sees them). */
+function watchRun(r) {
+  if (seenRun.id !== r.id) { seenRun = { id: r.id, elites: r.elites, swarms: r.swarms, boss: r.boss }; return; }
+  if (r.elites > seenRun.elites) { toast("AN ELITE APPROACHES", "Beat it for a chest: a free upgrade each", 3000); sfx("elite"); }
+  if (r.swarms > seenRun.swarms) toast("BAT SWARM", "They're closing in from every side", 2500);
+  if (r.boss && !seenRun.boss) { toast("THE NIGHT LORD RISES", "Beat him and dawn breaks", 4000); sfx("boss"); }
+  Object.assign(seenRun, { elites: r.elites, swarms: r.swarms, boss: r.boss });
+}
+function hud(r) {
+  const boss = [...foes.values()].find((f) => f.k === "B" && !f.dead);
+  $("boss").hidden = !boss;
+  if (boss) $("bossFill").style.width = (clamp(boss.hp / boss.max, 0, 1) * 100).toFixed(1) + "%";
+  if (ATTRACT) { for (const id of HUD_IDS) $(id).textContent = ""; $("xp").style.display = "none"; return; }
+  const t = Date.now(), el = t - r.startAt, tm = teamNow(), kills = tm.k?.[me.id] || 0;
+  $("xpFill").style.width = (clamp(me.xp / xpNeed(me.lv), 0, 1) * 100).toFixed(1) + "%";
+  $("lvl").innerHTML = `Lv ${me.lv}<small>${kills} kill${kills === 1 ? "" : "s"}</small>`;
+  $("build").innerHTML = Object.entries(me.build).map(([c, n]) => { const D = WEAPONS[c] || PASSIVES[c]; return `<span style="color:${D.color || "#eef2ff"}">${D.icon} ${n}</span>`; }).join("");
+  $("clock").innerHTML = r.phase === "over" ? "" : el < 0 ? `${Math.ceil(-el / 1000)}<small>Night falls…</small>` : `${clock(el)}<small>${r.boss ? "The Night Lord is here" : `Boss at ${clock(CONFIG.runMs)}`}</small>`;
+  $("team").innerHTML = hunters.filter((h) => h !== me).map((h) => `<div><span style="color:${h.color}">${esc(h.name)}</span><span>Lv ${h.lv}</span>${h.down ? `<span class="down">DOWN</span>` : `<b><i style="width:${Math.round(clamp(h.hp / h.mh, 0, 1) * 100)}%"></i></b>`}</div>`).join("");
+  watchRun(r);
+  let msg = performance.now() < banner.until ? banner.text : "";
+  if (me.down && r.phase === "play") msg = `YOU'RE DOWN<small>Hang on: a teammate standing next to you gets you up</small>`;
+  if ($("msg").innerHTML !== msg) $("msg").innerHTML = msg;
+  const touch = matchMedia("(pointer: coarse)").matches;
+  $("hint").textContent = performance.now() - startedAt < 12000 && !me.choices ? (touch ? "Drag anywhere to walk · your weapons fire on their own · grab the gems" : "WASD, arrows or hold the mouse to walk · your weapons fire on their own · grab the gems") : "";
+  const n = livePlayers().length;
+  $("net").textContent = net.offline ? "Offline: playing with bots" : dropped ? "Reconnecting…" : `Online · ${n} player${n === 1 ? "" : "s"}${isHost() ? " · you run the horde" : ""}`;
+  if (r.phase === "play" && !me.down && me.picks > 0 && !me.choices) { // time to pick an upgrade
+    me.choices = rollChoices(me);
+    if (!me.choices.length) { me.choices = null; me.picks = 0; me.hp = me.mh; } // everything maxed: a full heal instead
+    renderCards();
+  }
+  if ((r.phase !== "play" || me.down) && me.choices) { me.choices = null; renderCards(); }
+  $("over").hidden = r.phase !== "over";
+  if (r.phase === "over") {
+    const final = r.final || [], mine = final.find((e) => e.i === me.id) || { k: kills, l: me.lv };
+    $("overTitle").textContent = r.won ? "Dawn breaks!" : "The night took you";
+    $("overSub").textContent = r.won ? "You beat the Night Lord." : "Everyone went down.";
+    $("stTime").innerHTML = `${clock(Math.max(0, r.endedAt - r.startAt))}<small>SURVIVED</small>`;
+    $("stKills").innerHTML = `${mine.k}<small>KILLS</small>`;
+    $("stLevel").innerHTML = `${mine.l}<small>LEVEL</small>`;
+    $("results").innerHTML = final.map((e) => `<li class="${e.i === me.id ? "me" : ""}"><span>Lv ${e.l} · ${e.k} kills</span><b style="color:${e.c}">●</b> ${esc(e.i === me.id ? myName : e.n)}</li>`).join("");
+    $("next").textContent = `Next night in ${Math.max(0, Math.ceil((r.endsAt - t) / 1000))}s`;
+    if (me.shownFor !== r.id) { me.shownFor = r.id; showBoard(mine.k); }
+  }
+}
+function renderCards() {
+  const box = $("cards");
+  if (!me.choices || ATTRACT) { box.hidden = true; return; }
+  box.hidden = false;
+  $("cardsTitle").textContent = me.picks > 1 ? `LEVEL UP · PICK ONE (${me.picks} TO GO)` : "LEVEL UP · PICK ONE";
+  $("cardRow").innerHTML = me.choices.map((c, i) => {
+    const D = WEAPONS[c] || PASSIVES[c], lv = me.build[c] || 0;
+    return `<button class="pick" data-i="${i}"><kbd>${i + 1}</kbd><span class="ic" style="color:${D.color || "#ffd166"}">${D.icon}</span><b>${D.name}</b><i>${lv ? `Lv ${lv} → ${lv + 1}` : "New!"}</i><small>${D.info}</small></button>`;
+  }).join("");
+}
+function pickCard(i) {
+  const c = me.choices && me.choices[i];
+  if (!c) return;
+  applyPick(me, c); me.picks--; me.choices = null;
+  pops.push({ x: me.x, y: me.y - 40, t: 0, text: (WEAPONS[c] || PASSIVES[c]).name, color: "#ffd166" }); sfx("chest");
+  renderCards(); publish(true);
+  lastHud = 0; // show the next set of cards (if any) right away
+}
+$("cardRow").addEventListener("pointerdown", (e) => { const b = e.target.closest(".pick"); if (b) { e.preventDefault(); e.stopPropagation(); pickCard(+b.dataset.i); } });
+function showBoard(kills) {
+  const list = $("board");
+  if (!board) { list.innerHTML = "<li>Leaderboards need a connection.</li>"; return; }
+  list.innerHTML = "<li>Loading…</li>";
+  board.submit(kills).catch(() => null).then(() => board.top(10)).then(({ entries }) => {
+    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score}</span></li>`).join("") : "<li>No scores yet. You're first.</li>";
+  }).catch(() => { list.innerHTML = "<li>Couldn't load the leaderboard.</li>"; });
+}
+$("again").onclick = () => { if (isHost()) host.again = true; else net.send("again", {}); };
+
+// ── INPUT ───────────────────────────────────────────────────────────────────────────
+// Keys walk. Hold the mouse button to walk toward the pointer. Touch: a thumb stick wherever you put your thumb.
+const keys = new Set(), mouse = { x: 0, y: 0, down: false }, stick = { id: null, x0: 0, y0: 0, dx: 0, dy: 0 };
+const MOVE = { w: [0, -1], arrowup: [0, -1], s: [0, 1], arrowdown: [0, 1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] };
+addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase();
+  if (MOVE[k] || k === " ") e.preventDefault();
+  if (k === "1" || k === "2" || k === "3") pickCard(+k - 1);
+  keys.add(k); try { audio ||= new AudioContext(); } catch {}
+});
+addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+addEventListener("blur", () => { keys.clear(); mouse.down = false; });
+addEventListener("pointerdown", () => { try { audio ||= new AudioContext(); } catch {} }, { once: true });
+cv.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  if (e.pointerType === "mouse") { if (e.button === 0) { mouse.down = true; mouse.x = e.clientX; mouse.y = e.clientY; } return; }
+  if (stick.id !== null) return;
+  Object.assign(stick, { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 });
+  Object.assign($("stick").style, { left: e.clientX + "px", top: e.clientY + "px" }); $("stick").hidden = false;
+});
+addEventListener("pointermove", (e) => {
+  if (e.pointerType === "mouse") { mouse.x = e.clientX; mouse.y = e.clientY; return; }
+  if (e.pointerId !== stick.id) return;
+  let dx = e.clientX - stick.x0, dy = e.clientY - stick.y0; const d = Math.hypot(dx, dy);
+  if (d > 50) { dx *= 50 / d; dy *= 50 / d; }
+  stick.dx = dx; stick.dy = dy; $("stick").firstChild.style.transform = `translate(${dx}px, ${dy}px)`;
+});
+for (const ev of ["pointerup", "pointercancel"]) addEventListener(ev, (e) => {
+  if (e.pointerType === "mouse") { if (e.button === 0) mouse.down = false; return; }
+  if (e.pointerId === stick.id) { stick.id = null; stick.dx = stick.dy = 0; $("stick").hidden = true; }
+});
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+/** This frame's walk direction (length 0..1) from keys, the stick or the held mouse. */
+function readMove() {
+  let x = 0, y = 0;
+  for (const k of keys) if (MOVE[k]) { x += MOVE[k][0]; y += MOVE[k][1]; }
+  if (stick.id !== null) { x = stick.dx / 50; y = stick.dy / 50; if (Math.hypot(x, y) < 0.15) x = y = 0; }
+  else if (mouse.down) { // the pointer as a point in the world, through the camera this frame is drawn with
+    const z = zoom(), wx = cam.x + (mouse.x - W / 2) / z, wy = cam.y + (mouse.y - H / 2) / z, dx = wx - me.x, dy = wy - me.y, d = Math.hypot(dx, dy);
+    if (d > 6) { const k = Math.min(1, d / 50); x = dx / d * k; y = dy / d * k; }
+  }
+  const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+  return { x, y };
+}
+
+// ── MAIN LOOP ───────────────────────────────────────────────────────────────────────
+let last = performance.now(), lastReal = performance.now(), lastHb = 0, lastHud = 0, lastHits = 0;
+function frame(now) {
+  requestAnimationFrame(frame); // first: one exception below can't stop the game
+  const real = performance.now(); // (the frame's own timestamp can date from before a freeze)
+  if (real - lastReal > 1000) wakeUp(real); // back from a freeze or a background tab
+  lastReal = real;
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; // never negative: the first frame can be stamped before `last`
+  if (now - lastHb > 1000) { lastHb = now; net.me.set("hb", Date.now()); fixColor(); }
+  listenForHost(real);
+  if (mayHost(real)) hostTick(dt, now); else if (host.acting) stopHosting();
+  const r = run();
+  readSnapshots(now, r);
+  syncViews(dt, now);
+  hunters = allHunters();
+  stepFoes(dt, r);
+  if (r) myTick(dt, r);
+  if (r && r.phase === "play") for (const h of hunters) stepWeapons(h, dt, h === me || (host.acting && host.bots.has(h.id)), now / 1000);
+  stepShots(dt); stepFx(dt);
+  if (now - lastHits > 125) { lastHits = now; flushHits(); }
+  draw(now / 1000, dt, r);
+  if (r && now - lastHud > 150) { lastHud = now; hud(r); }
+}
+
+(async function start() {
+  net = await connect();
+  net.onState((st) => { S = st; });
+  net.on("hits", (msg, from) => {
+    const r = run();
+    if (!host.acting || !r || r.phase !== "play" || !msg || !Array.isArray(msg.l)) return;
+    for (const [id, d] of msg.l.slice(0, 200)) { const f = foes.get(Number(id)); if (f && !f.dead) hurtFoe(f, clamp(Number(d) || 0, 0, 5000), from); }
+  });
+  net.on("again", () => { if (host.acting) host.again = true; });
+  net.onDisconnect(() => { dropped = true; $("net").textContent = "Reconnecting…"; });
+  net.onReconnect(() => { dropped = false; });
+  if (!net.offline && typeof MP !== "undefined") board = MP.auth({ key: MP_CONNECT.key, apiUrl: MP_CONNECT.apiUrl }).leaderboard(CONFIG.board);
+  const taken = new Set([...Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId).map(([, p]) => p.c), ...parse(S.shared.bots, []).map((b) => b.c)]);
+  me.id = net.sessionId; me.color = COLORS.find((c) => !taken.has(c)) || COLORS[Math.floor(Math.random() * COLORS.length)];
+  net.me.set({ n: myName, c: me.color, hb: Date.now() });
+  if (ATTRACT) Object.assign(CONFIG, { startMinute: 6.3, runMs: 6.3 * 60000 + 500, readyMs: 0, startLevel: 12, hordeStart: 450, spawnMax: 160, spawnDist: 560, hp: 900, hpGrow: 0.2, hpCurve: 0.03, shieldMs: 0 });
+  me.build = { [me.startWeapon]: 1 }; refreshBuild(me);
+  last = lastReal = performance.now();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
