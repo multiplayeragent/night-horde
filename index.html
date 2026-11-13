@@ -51,6 +51,7 @@
   .stick i { position: absolute; left: 34px; top: 34px; width: 52px; height: 52px; border-radius: 50%; background: #ffffff70; }
   @media (max-width: 640px) {
     #lvl { font-size: 20px; } #clock { font-size: 22px; } #team { width: 118px; font-size: 11px; } #team div { grid-template-columns: 1fr 26px 30px; }
+    #clock small { width: 100px; margin: 2px auto 0; } /* a long line wraps instead of running into the team list */
     #build { width: 130px; font-size: 11px; } #msg { font-size: 24px; }
     #boss { top: calc(env(safe-area-inset-top) + 150px); width: calc(100vw - 40px); }
     .pick { min-height: 112px; padding: 8px 6px 6px; } .pick small { font-size: 11px; } .pick kbd { display: none; }
@@ -166,7 +167,7 @@ const CONFIG = {
   swarmEvery: 90,        // seconds between bat swarms (a ring that closes in); the first at 0:45
   swarmSize: 24,         // bats in a swarm ...
   swarmGrow: 8,          // ... plus this many more every minute
-  bossHp: 30000,         // the Night Lord's health
+  bossHp: 20000,         // the Night Lord's health (about two minutes for a full team)
   bossSummonEvery: 6,    // seconds between the bat rings the Night Lord calls
   maxGems: 400,          // most gems on your screen (extra ones merge into bigger gems)
   botSkill: 0.6,         // 0..1: how hard bots keep away from the horde
@@ -358,6 +359,8 @@ function stepFoes(dt, r) {
     f.x = clamp(f.x, 10, A - 10); f.y = clamp(f.y, 10, A - 10);
   }
 }
+/** The Night Lord, while he is on the field. */
+function nightLord() { for (const f of foes.values()) if (f.k === "B" && !f.dead) return f; return null; }
 /** Every monster gone at once (a night ends or starts), with no gems or blasts. */
 function clearFoes() { for (const f of foes.values()) f.dead = true; foes.clear(); }
 let lastFields = ["", "", ""], foesRun = -1;
@@ -680,33 +683,44 @@ function stepBots(dt, r) {
     hurtByFoes(b, dt, minute);
   }
 }
-/** The bot brain (also your autopilot in the preview): back away from the horde, circle, help the downed when there's an opening, stay near the team. */
+/** The bot brain (also your autopilot in the preview). Five times a second it looks at 16 ways to walk and takes the one
+ *  with the fewest monsters ahead that doesn't end at the fence, so it circles the horde instead of backing into a corner.
+ *  It helps the downed when there's an opening, stays near the team, and keeps close to the Night Lord but out of his reach. */
 function botMove(h, dt) {
   if ((h.think -= dt) > 0) return { x: h.mvx, y: h.mvy };
   h.think = 0.15 + Math.random() * 0.1; // bots react a little late
-  let mx = 0, my = 0;
-  foesNear(h.x, h.y, 260, (f) => {
-    const dx = h.x - f.x, dy = h.y - f.y, d = Math.hypot(dx, dy) || 1;
-    if (d < 260) { const w = (KINDS[f.k].r + 20) / d * CONFIG.botSkill; mx += dx / d * w; my += dy / d * w; }
-  });
+  const A = CONFIG.arena, mates = hunters.filter((o) => o !== h), far = (o) => Math.hypot(o.x - h.x, o.y - h.y);
+  // How bad a spot is: the monsters within r of it (6 or 60 small ones are the same wall), plus every brute and elite
+  // (they bite hardest and are slow to kill: walk round them), and never the Night Lord.
+  const crowd = (x, y, r) => {
+    let n = 0, big = 0;
+    foesNear(x, y, r + 70, (f) => { if (Math.hypot(f.x - x, f.y - y) - KINDS[f.k].r < r - 15) { if (f.k === "B") big += 9; else if (f.k === "t" || f.k === "E") big += 3; else n += KINDS[f.k].r / 15; } });
+    return Math.min(6, n) + Math.min(9, big);
+  };
+  // Somewhere to be (pull = how much it matters): by a downed teammate, around the Night Lord, back with the team, or where the monsters are.
+  let goal = null, pull = 0;
+  const downed = mates.filter((o) => o.down && crowd(o.x, o.y, 120) < 6).sort((a, b) => far(a) - far(b))[0]; // wait for an opening, don't wade in
+  const lord = nightLord(), team = mates.length ? { x: mates.reduce((s, o) => s + o.x, 0) / mates.length, y: mates.reduce((s, o) => s + o.y, 0) / mates.length } : null;
+  if (downed && far(downed) < 1400) {
+    if (far(downed) < 30 && crowd(h.x, h.y, 80) < 2) { h.mvx = h.mvy = 0; return { x: 0, y: 0 }; } // stand by them until they're up
+    goal = downed; pull = 2;
+  } else if (lord && far(lord) < 230) { goal = lord; pull = -2.5; }                       // too close to him: back off
+  else if (lord && far(lord) > 400) { goal = lord; pull = 0.8; }                         // stay in the fight: lead the horde round him, don't run off
+  else if (team && far(team) > 380) { goal = team; pull = 0.9; }
+  else if (crowd(h.x, h.y, 200) < 1) { goal = nearestFoes(h, 1, 900)[0]; pull = 0.5; }   // nothing near: go where the monsters are
   h.heading += (Math.random() - 0.5) * 0.5;
-  mx += Math.cos(h.heading) * 0.8; my += Math.sin(h.heading) * 0.8;
-  const mates = hunters.filter((o) => o !== h);
-  const crowd = (o) => { let n = 0; foesNear(o.x, o.y, 120, (f) => { if ((f.x - o.x) ** 2 + (f.y - o.y) ** 2 < 120 * 120) n++; }); return n; };
-  const downed = mates.filter((o) => o.down && crowd(o) < 6).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; // wait for an opening, don't wade in
-  if (downed && Math.hypot(downed.x - h.x, downed.y - h.y) < 1400) {
-    const dx = downed.x - h.x, dy = downed.y - h.y, d = Math.hypot(dx, dy) || 1;
-    if (d > 30) { mx += dx / d * 2; my += dy / d * 2; } else { mx *= 0.15; my *= 0.15; }
-  } else if (mates.length) {
-    const cx = mates.reduce((s, o) => s + o.x, 0) / mates.length, cy = mates.reduce((s, o) => s + o.y, 0) / mates.length, d = Math.hypot(cx - h.x, cy - h.y);
-    if (d > 380) { mx += (cx - h.x) / d * 0.9; my += (cy - h.y) / d * 0.9; }
+  let best = h.heading, low = Infinity;
+  for (let k = 0; k < 16; k++) {
+    const a = h.heading + k * TAU / 16, dx = Math.cos(a), dy = Math.sin(a);
+    let cost = (crowd(h.x + dx * 70, h.y + dy * 70, 80) * 2 + crowd(h.x + dx * 210, h.y + dy * 210, 120)) * CONFIG.botSkill; // monsters that way, near and farther
+    const ex = clamp(h.x + dx * 300, 0, A), ey = clamp(h.y + dy * 300, 0, A), edge = Math.max(0, 500 - Math.min(ex, ey, A - ex, A - ey)) / 500;
+    cost += edge * edge * 30;              // the fence is a dead end: turn along it early, and rather through the horde than into a corner
+    cost -= Math.cos(a - h.heading) * 0.7; // rather straight on than zigzag
+    if (goal) cost -= ((goal.x - h.x) * dx + (goal.y - h.y) * dy) / (far(goal) || 1) * pull;
+    for (const o of mates) if (!o.down && far(o) < 70) cost += ((o.x - h.x) * dx + (o.y - h.y) * dy) / (far(o) || 1) * 0.4; // a little room between hunters
+    if (cost < low) { low = cost; best = a; }
   }
-  const A = CONFIG.arena, edge = 320;
-  if (h.x < edge) mx += (edge - h.x) / edge * 2.5; if (h.x > A - edge) mx -= (h.x - A + edge) / edge * 2.5;
-  if (h.y < edge) my += (edge - h.y) / edge * 2.5; if (h.y > A - edge) my -= (h.y - A + edge) / edge * 2.5;
-  const l = Math.hypot(mx, my);
-  h.mvx = l > 0.05 ? mx / l : 0; h.mvy = l > 0.05 ? my / l : 0;
-  if (l > 0.05) h.heading = Math.atan2(h.mvy, h.mvx);
+  h.heading = best; h.mvx = Math.cos(best); h.mvy = Math.sin(best);
   return { x: h.mvx, y: h.mvy };
 }
 const botWire = (b) => ({ id: b.id, n: b.name, c: b.color, x: Math.round(b.x), y: Math.round(b.y), hp: Math.round(b.hp), mh: b.mh, lv: b.lv, xp: Math.round(b.xp), d: b.down, rv: +b.rv.toFixed(2), fx: b.fx, w: b.w, sh: Date.now() < b.shieldUntil ? 1 : 0 });
@@ -780,7 +794,7 @@ function giveXp(h, xp) {
   h.xp += xp;
   while (h.xp >= xpNeed(h.lv)) {
     h.xp -= xpNeed(h.lv); h.lv++; h.picks++; h.hp = Math.min(h.mh, h.hp + h.mh * CONFIG.levelHeal);
-    if (h === me) levelUpFx();
+    levelUpFx(h);
   }
 }
 /** Where a hunter comes in at the start of a night (or when joining late: next to a teammate, caught up in levels). */
@@ -826,10 +840,11 @@ function reviveTick(h, dt) {
     if (h === me) { sfx("up"); publish(true); }
   }
 }
-function levelUpFx() {
-  rings.push({ x: me.x, y: me.y, t: 0, dur: 0.5, r: 170, color: "#ffd166" }); pops.push({ x: me.x, y: me.y - 40, t: 0, text: "LEVEL UP", color: "#ffd166", big: 1 });
-  sfx("level");
-  foesNear(me.x, me.y, 210, (f) => { if ((f.x - me.x) ** 2 + (f.y - me.y) ** 2 < 170 * 170) hurtFoe(f, CONFIG.novaDamage * me.st.might, me.id); }); // the level-up nova
+/** Hunter h (me, or a bot on the host) went up a level: a gold ring, and the nova that blasts the monsters around it. */
+function levelUpFx(h) {
+  rings.push({ x: h.x, y: h.y, t: 0, dur: 0.5, r: 170, color: "#ffd166" });
+  if (h === me) { pops.push({ x: me.x, y: me.y - 40, t: 0, text: "LEVEL UP", color: "#ffd166", big: 1 }); sfx("level"); }
+  foesNear(h.x, h.y, 210, (f) => { if ((f.x - h.x) ** 2 + (f.y - h.y) ** 2 < 170 * 170) hurtFoe(f, CONFIG.novaDamage * h.st.might, h.id); }); // the level-up nova
 }
 /** A monster died on my screen: my own copy of its gem (or chest) drops there. */
 function dropLoot(f) {
@@ -909,6 +924,7 @@ function syncViews(dt, now) {
       const gap = Math.max(40, now - v.at), cap = CONFIG.speed * 2;
       if (v.raw !== null) { v.vx = clamp((s.x - v.tx) / gap * 1000, -cap, cap); v.vy = clamp((s.y - v.ty) / gap * 1000, -cap, cap); }
       if (v.raw !== null && s.d && !v.down) { spark(v.x, v.y, s.color, 24, 260, 4); rings.push({ x: v.x, y: v.y, t: 0, dur: 0.5, r: 70, color: s.color }); }
+      if (v.raw !== null && s.lv > v.lv && !s.d) rings.push({ x: v.x, y: v.y, t: 0, dur: 0.5, r: 170, color: "#ffd166" }); // they went up a level: their nova (it hurts on their screen)
       Object.assign(v, { name: s.name, color: s.color, hp: s.hp, mh: s.mh || CONFIG.hp, lv: s.lv || 1, down: s.d || 0, rv: s.rv || 0, fx: s.fx || 1, shield: s.sh, raw: s.raw, tx: s.x, ty: s.y, at: now });
       if (s.w !== v.w) { v.w = s.w; v.build = parseBuild(s.w); v.st = statsOf(v.build); }
       if (Math.hypot(v.tx - v.x, v.ty - v.y) > 300) { v.x = v.tx; v.y = v.ty; v.vx = v.vy = 0; } // came in somewhere new: jump there
@@ -1094,7 +1110,7 @@ function drawHunter(h, t) {
     ctx.fillStyle = darken(h.color, 0.5); ctx.beginPath(); ctx.arc(x - 12, y + 2, 7, 0, TAU); ctx.fill();
     ctx.strokeStyle = "#ffffff30"; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, CONFIG.reviveRange * 0.6, 0, TAU); ctx.stroke();
     ctx.strokeStyle = "#7ee081"; ctx.beginPath(); ctx.arc(x, y, CONFIG.reviveRange * 0.6, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(h.rv, 0, 1)); ctx.stroke();
-    ctx.fillStyle = "#ff6b6b"; ctx.font = "900 20px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.globalAlpha = 0.6 + Math.sin(t * 6) * 0.4; ctx.fillText("!", x, y - 26); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ff6b6b"; ctx.font = "900 20px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.globalAlpha = 0.6 + Math.sin(t * 6) * 0.4; ctx.fillText("!", x, y - 46); ctx.globalAlpha = 1; // above the name
   } else {
     if ((h === me ? Date.now() < me.shieldUntil : h.shield || Date.now() < h.shieldUntil) && Math.floor(t * 10) % 2) ctx.globalAlpha = 0.45;
     const bob = Math.hypot(h.vx || 0, h.vy || 0) > 20 ? Math.abs(Math.sin(t * 12)) * 2 : 0;
@@ -1182,7 +1198,7 @@ function watchRun(r) {
   Object.assign(seenRun, { elites: r.elites, swarms: r.swarms, boss: r.boss });
 }
 function hud(r) {
-  const boss = [...foes.values()].find((f) => f.k === "B" && !f.dead);
+  const boss = nightLord();
   $("boss").hidden = !boss;
   if (boss) $("bossFill").style.width = (clamp(boss.hp / boss.max, 0, 1) * 100).toFixed(1) + "%";
   if (ATTRACT) { for (const id of HUD_IDS) $(id).textContent = ""; $("xp").style.display = "none"; return; }
@@ -1261,6 +1277,7 @@ addEventListener("keydown", (e) => {
 addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 addEventListener("blur", () => { keys.clear(); mouse.down = false; });
 addEventListener("pointerdown", () => { try { audio ||= new AudioContext(); } catch {} }, { once: true });
+cv.addEventListener("contextmenu", (e) => e.preventDefault()); // no menu on a right-click or a long press
 cv.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   if (e.pointerType === "mouse") { if (e.button === 0) { mouse.down = true; mouse.x = e.clientX; mouse.y = e.clientY; } return; }
