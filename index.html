@@ -45,6 +45,7 @@
   .stats small { display: block; font-size: 11px; font-weight: 700; color: #eef2ff; opacity: .7; letter-spacing: .06em; }
   .card ol { margin: 0; padding-left: 24px; font-size: 14px; text-align: left; }
   .card li span { float: right; font-variant-numeric: tabular-nums; } .card li.me { color: #ffd166; font-weight: 700; }
+  .card li.note { list-style: none; margin-left: -24px; } /* a status line, not a numbered entry */
   .card p { margin: 10px 0 0; font-size: 13px; opacity: .7; }
   button.go { width: 100%; min-height: 48px; margin-top: 16px; border: 0; border-radius: 12px; background: #7ee0ff; color: #061520; font: 800 17px system-ui, sans-serif; cursor: pointer; }
   .stick { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid #ffffff55; background: #ffffff12; pointer-events: none; }
@@ -76,7 +77,7 @@
   <h2 id="overTitle"></h2><div id="overSub"></div>
   <div class="stats"><div id="stTime"></div><div id="stKills"></div><div id="stLevel"></div></div>
   <h3>Your team</h3><ol id="results"></ol>
-  <h3>Most kills in one night</h3><ol id="board"><li>Loading…</li></ol>
+  <h3>Most kills in one night</h3><ol id="board"><li class="note">Loading…</li></ol>
   <button class="go" id="again">Play again</button><p id="next"></p>
 </div></div>
 <script>
@@ -1256,11 +1257,11 @@ function pickCard(i) {
 $("cardRow").addEventListener("pointerdown", (e) => { const b = e.target.closest(".pick"); if (b) { e.preventDefault(); e.stopPropagation(); pickCard(+b.dataset.i); } });
 function showBoard(kills) {
   const list = $("board");
-  if (!board) { list.innerHTML = "<li>Leaderboards need a connection.</li>"; return; }
-  list.innerHTML = "<li>Loading…</li>";
+  if (!board) { list.innerHTML = "<li class='note'>Leaderboards need a connection.</li>"; return; }
+  list.innerHTML = "<li class='note'>Loading…</li>";
   board.submit(kills).catch(() => null).then(() => board.top(10)).then(({ entries }) => {
-    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score}</span></li>`).join("") : "<li>No scores yet. You're first.</li>";
-  }).catch(() => { list.innerHTML = "<li>Couldn't load the leaderboard.</li>"; });
+    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score}</span></li>`).join("") : "<li class='note'>No scores yet. You're first.</li>";
+  }).catch(() => { list.innerHTML = "<li class='note'>Couldn't load the leaderboard.</li>"; });
 }
 $("again").onclick = () => { if (isHost()) host.again = true; else net.send("again", {}); };
 
